@@ -63,7 +63,7 @@ function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
 end
 
 function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
-	local fTemperature = tParams["FAHRENHEIT"]
+	local fTemperature = tonumber(tParams["FAHRENHEIT"])
 	local temperatureServiceCall = {}
 
 	if fTemperature <= 0 then
@@ -76,7 +76,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
 			service = "set_temperature",
 	
 			service_data = {
-				target_temp_low = tostring(fTemperature),
+				target_temp_low = fTemperature,
 				target_temp_high = HIGH_TEMP
 			},
 	
@@ -90,7 +90,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
 			service = "set_temperature",
 	
 			service_data = {
-				temperature = tostring(fTemperature)
+				temperature = fTemperature
 			},
 	
 			target = {
@@ -107,7 +107,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
 end
 
 function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
-	local fTemperature = tParams["FAHRENHEIT"]
+	local fTemperature = tonumber(tParams["FAHRENHEIT"])
 	local temperatureServiceCall = {}
 
 	if fTemperature <= 0 then
