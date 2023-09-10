@@ -1,0 +1,142 @@
+<devicedata>
+	<copyright>BP</copyright>
+	<creator>BP</creator>
+	<manufacturer>BP</manufacturer>
+	<name>HA Thermostat</name>
+	<model>HA Thermostat</model>
+	<created>09/01/2023 12:00</created>
+	<modified>09/04/2023 12:00</modified>
+	<version>1</version>
+	<control>lua_gen</control>
+	<controlmethod>IP</controlmethod>
+	<driver>DriverWorks</driver>
+	<config>
+		<script jit="1" file="Control4-HA-Base/driver.lua"/>
+		<properties>
+			<property>
+				<name>Entity ID</name>
+				<type>STRING</type>
+				<readonly>false</readonly>
+				<default>climate.thermostat</default>
+			</property>
+			<property>
+				<name>Driver Version</name>
+				<default></default>
+				<type>STRING</type>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Debug Mode</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
+				<readonly>false</readonly>
+			</property>
+		</properties>
+		<actions>
+		</actions>
+		<commands/>
+	</config>
+	<proxies>
+		<proxy proxybindingid="5001" name="HA Thermostat">thermostatV2</proxy>
+	</proxies>
+	<capabilities>
+		<can_heat>true</can_heat>
+		<can_cool>true</can_cool>
+		<has_single_setpoint>false</has_single_setpoint>
+		<can_do_auto>true</can_do_auto>
+		<can_calibrate>false</can_calibrate>
+		<can_lock_buttons>false</can_lock_buttons>
+		<can_change_scale>false</can_change_scale>
+		<setpoint_heat_min_f>38</setpoint_heat_min_f>
+		<setpoint_heat_min_c>4</setpoint_heat_min_c>
+		<setpoint_heat_max_f>89</setpoint_heat_max_f>
+		<setpoint_heat_max_c>31</setpoint_heat_max_c>
+		<setpoint_heat_resolution_f>1</setpoint_heat_resolution_f>
+		<setpoint_heat_resolution_c>1</setpoint_heat_resolution_c>
+		<setpoint_cool_min_f>42</setpoint_cool_min_f>
+		<setpoint_cool_min_c>6</setpoint_cool_min_c>
+		<setpoint_cool_max_f>90</setpoint_cool_max_f>
+		<setpoint_cool_max_c>32</setpoint_cool_max_c>
+		<setpoint_cool_resolution_f>1</setpoint_cool_resolution_f>
+		<setpoint_cool_resolution_c>1</setpoint_cool_resolution_c>
+		<setpoint_single_min_f>42</setpoint_single_min_f>
+		<setpoint_single_min_c>6</setpoint_single_min_c>
+		<setpoint_single_max_f>90</setpoint_single_max_f>
+		<setpoint_single_max_c>32</setpoint_single_max_c>
+		<hvac_modes>Off,Heat,Cool,Auto</hvac_modes>
+		<fan_modes>Auto,On,Circulate</fan_modes>
+		<hvac_states>Off,Heating,Cooling</hvac_states>
+		<fan_states>Off,On</fan_states>
+		<has_vacation_mode>false</has_vacation_mode>
+		<has_remote_sensor>false</has_remote_sensor>
+		<has_outdoor_temperature>false</has_outdoor_temperature>
+		<has_connection_status>true</has_connection_status>
+		<can_inc_dec_setpoints>false</can_inc_dec_setpoints>
+		<current_temperature_resolution_f>1</current_temperature_resolution_f>
+		<current_temperature_resolution_c>1</current_temperature_resolution_c>
+		<outdoor_temperature_resolution_f>1</outdoor_temperature_resolution_f>
+		<outdoor_temperature_resolution_c>1</outdoor_temperature_resolution_c>
+		<can_humidify>false</can_humidify>
+		<has_humidity>true</has_humidity>
+		<has_extras>false</has_extras>
+		<scheduling>false</scheduling>
+		<can_preset>false</can_preset>
+		<can_preset_schedule>false</can_preset_schedule>
+	</capabilities>
+	<events/>
+	<connections>
+		<connection>
+			<id>999</id>
+			<facing>1</facing>
+			<type>1</type>
+			<connectionname>Device Link</connectionname>
+			<consumer>True</consumer>
+			<classes>
+				<class>
+					<classname>HA_DEVICE</classname>
+					<autobind>True</autobind>
+				</class>
+			</classes>
+		</connection>
+		<connection>
+			<id>5001</id>
+			<facing>6</facing>
+			<connectionname>Thermostat</connectionname>
+			<type>2</type>
+			<consumer>False</consumer>
+			<audiosource>False</audiosource>
+			<videosource>False</videosource>
+			<linelevel>False</linelevel>
+			<hidden>True</hidden>
+			<classes>
+				<class>
+					<classname>THERMOSTAT</classname>
+				</class>
+			</classes>
+		</connection>
+		<connection>
+			<id>7000</id>
+			<facing>6</facing>
+			<connectionname> Selection</connectionname>
+			<type>7</type>
+			<consumer>False</consumer>
+			<audiosource>False</audiosource>
+			<videosource>False</videosource>
+			<linelevel>False</linelevel>
+			<classes>
+				<class>
+					<autobind>True</autobind>
+					<classname>TEMPERATURE</classname>
+				</class>
+				<class>
+					<autobind>True</autobind>
+					<classname>TEMPERATURE_CONTROL</classname>
+				</class>
+			</classes>
+		</connection>
+	</connections>
+</devicedata>
