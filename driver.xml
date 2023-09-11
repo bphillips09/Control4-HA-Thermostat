@@ -4,8 +4,8 @@
 	<manufacturer>BP</manufacturer>
 	<name>HA Thermostat</name>
 	<model>HA Thermostat</model>
-	<created>09/01/2023 12:00</created>
-	<modified>09/04/2023 12:00</modified>
+	<created>09/10/2023 12:00</created>
+	<modified>09/10/2023 12:00</modified>
 	<version>1</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
