@@ -1,153 +1,163 @@
+TARGET_TEMPERATURE = 1
+TARGET_TEMPERATURE_RANGE = 2
+TARGET_HUMIDITY = 4
+FAN_MODE = 8
+PRESET_MODE = 16
+SWING_MODE = 32
+AUX_HEAT = 64
+
+HVAC_MODES = {}
+FAN_MODES = {}
+PRESET_MODES = {}
+
+HAS_HUMIDITY = false
+
+local EnumToCapability = {
+    [TARGET_TEMPERATURE] = "TARGET_TEMPERATURE",
+    [TARGET_TEMPERATURE_RANGE] = "TARGET_TEMPERATURE_RANGE",
+    [TARGET_HUMIDITY] = "TARGET_HUMIDITY",
+    [FAN_MODE] = "FAN_MODE",
+    [PRESET_MODE] = "PRESET_MODE",
+    [SWING_MODE] = "SWING_MODE",
+    [AUX_HEAT] = "AUX_HEAT",
+}
+
 function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
-	local mode = tParams["MODE"]
-	local hvacMode = ""
-	if mode == "Off" then
-		hvacMode = "off"
-	elseif mode == "Heat" then
-		hvacMode = "heat"
-	elseif mode == "Cool" then
-		hvacMode = "cool"
-	elseif mode == "Auto" then
-		hvacMode = "heat_cool"
-	end
+    local mode = tParams["MODE"]
 
-	local hvacModeServiceCall = {
-		domain = "climate",
-		service = "set_hvac_mode",
+    if mode == "Auto" then
+        mode = "heat_cool"
+    end
 
-		service_data = {
-			hvac_mode = hvacMode
-		},
+    local hvacModeServiceCall = {
+        domain = "climate",
+        service = "set_hvac_mode",
 
-		target = {
-			entity_id = EntityID
-		}
-	}
+        service_data = {
+            hvac_mode = mode
+        },
 
-	tParams = {
-		JSON = JSON:encode(hvacModeServiceCall)
-	}
+        target = {
+            entity_id = EntityID
+        }
+    }
 
-	C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    tParams = {
+        JSON = JSON:encode(hvacModeServiceCall)
+    }
+
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
-	local mode = tParams["MODE"]
-	local fanMode = ""
-	if mode == "Auto" then
-		fanMode = "Auto low"
-	elseif mode == "On" then
-		fanMode = "Low"
-	elseif mode == "Circulate" then
-		fanMode = "Circulation"
-	end
+    local mode = tParams["MODE"]
 
-	local hvacModeServiceCall = {
-		domain = "climate",
-		service = "set_fan_mode",
+    local hvacModeServiceCall = {
+        domain = "climate",
+        service = "set_fan_mode",
 
-		service_data = {
-			fan_mode = fanMode
-		},
+        service_data = {
+            fan_mode = mode
+        },
 
-		target = {
-			entity_id = EntityID
-		}
-	}
+        target = {
+            entity_id = EntityID
+        }
+    }
 
-	tParams = {
-		JSON = JSON:encode(hvacModeServiceCall)
-	}
+    tParams = {
+        JSON = JSON:encode(hvacModeServiceCall)
+    }
 
-	C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
-	local fTemperature = tonumber(tParams["FAHRENHEIT"])
-	local temperatureServiceCall = {}
+    local fTemperature = tonumber(tParams["FAHRENHEIT"])
+    local temperatureServiceCall = {}
 
-	if fTemperature <= 0 then
-		return
-	end
+    if fTemperature <= 0 then
+        return
+    end
 
-	if MODE == "Auto" then
-		temperatureServiceCall = {
-			domain = "climate",
-			service = "set_temperature",
-	
-			service_data = {
-				target_temp_low = fTemperature,
-				target_temp_high = HIGH_TEMP
-			},
-	
-			target = {
-				entity_id = EntityID
-			}
-		}
-	elseif MODE == "Heat" then
-		temperatureServiceCall = {
-			domain = "climate",
-			service = "set_temperature",
-	
-			service_data = {
-				temperature = fTemperature
-			},
-	
-			target = {
-				entity_id = EntityID
-			}
-		}
-	end
+    if MODE == "heat_cool" then
+        temperatureServiceCall = {
+            domain = "climate",
+            service = "set_temperature",
 
-	tParams = {
-		JSON = JSON:encode(temperatureServiceCall)
-	}
+            service_data = {
+                target_temp_low = fTemperature,
+                target_temp_high = HIGH_TEMP
+            },
 
-	C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+            target = {
+                entity_id = EntityID
+            }
+        }
+    elseif MODE == "heat" then
+        temperatureServiceCall = {
+            domain = "climate",
+            service = "set_temperature",
+
+            service_data = {
+                temperature = fTemperature
+            },
+
+            target = {
+                entity_id = EntityID
+            }
+        }
+    end
+
+    tParams = {
+        JSON = JSON:encode(temperatureServiceCall)
+    }
+
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
-	local fTemperature = tonumber(tParams["FAHRENHEIT"])
-	local temperatureServiceCall = {}
+    local fTemperature = tonumber(tParams["FAHRENHEIT"])
+    local temperatureServiceCall = {}
 
-	if fTemperature <= 0 then
-		return
-	end
+    if fTemperature <= 0 then
+        return
+    end
 
-	if MODE == "Auto" then
-		temperatureServiceCall = {
-			domain = "climate",
-			service = "set_temperature",
-	
-			service_data = {
-				target_temp_high = fTemperature,
-				target_temp_low = LOW_TEMP
-			},
-	
-			target = {
-				entity_id = EntityID
-			}
-		}
-	elseif MODE == "Cool" then
-		temperatureServiceCall = {
-			domain = "climate",
-			service = "set_temperature",
-	
-			service_data = {
-				temperature = fTemperature
-			},
-	
-			target = {
-				entity_id = EntityID
-			}
-		}
-	end
+    if MODE == "heat_cool" then
+        temperatureServiceCall = {
+            domain = "climate",
+            service = "set_temperature",
 
-	tParams = {
-		JSON = JSON:encode(temperatureServiceCall)
-	}
+            service_data = {
+                target_temp_high = fTemperature,
+                target_temp_low = LOW_TEMP
+            },
 
-	C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+            target = {
+                entity_id = EntityID
+            }
+        }
+    elseif MODE == "cool" then
+        temperatureServiceCall = {
+            domain = "climate",
+            service = "set_temperature",
+
+            service_data = {
+                temperature = fTemperature
+            },
+
+            target = {
+                entity_id = EntityID
+            }
+        }
+    end
+
+    tParams = {
+        JSON = JSON:encode(temperatureServiceCall)
+    }
+
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.RECEIEVE_STATE(idBinding, strCommand, tParams)
@@ -191,6 +201,7 @@ function Parse(data)
         {
             CONNECTED = "true"
         }
+
         C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
     end
 
@@ -202,8 +213,42 @@ function Parse(data)
         {
             CONNECTED = "false"
         }
+
         C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
         return
+    end
+
+    local selectedAttribute = attributes["hvac_modes"]
+    if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, HVAC_MODES) then
+        HVAC_MODES = attributes["hvac_modes"]
+
+        local modes = table.concat(HVAC_MODES,",")
+
+        modes = modes:gsub("heat_cool", "Auto")
+
+        local tParams = {
+            MODES = modes
+        }
+
+        C4:SendToProxy(5001, 'ALLOWED_HVAC_MODES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["fan_modes"]
+    if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, FAN_MODES) then
+        FAN_MODES = attributes["fan_modes"]
+
+        local modes = table.concat(FAN_MODES,",")
+
+        local tParams = {
+            MODES = modes
+        }
+
+        C4:SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["preset_modes"]
+    if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, PRESET_MODES) then
+        PRESET_MODES = attributes["preset_modes"]
     end
 
     if attributes["current_temperature"] ~= nil then
@@ -217,28 +262,40 @@ function Parse(data)
         C4:SendToProxy(5001, "TEMPERATURE_CHANGED", tParams, "NOTIFY")
     end
 
-    if attributes["current_humidity"] ~= nil then
+    selectedAttribute = attributes["current_humidity"]
+    if selectedAttribute ~= nil then
         local tParams = {
             HUMIDITY = tonumber(attributes["current_humidity"])
         }
 
         C4:SendToProxy(5001, "HUMIDITY_CHANGED", tParams, "NOTIFY")
+
+        if HAS_HUMIDITY == false then
+            HAS_HUMIDITY = true
+
+            local tParams = {
+                HAS_HUMIDITY = HAS_HUMIDITY
+            }
+    
+            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        end
+    else
+        if HAS_HUMIDITY == true then
+            HAS_HUMIDITY = false
+            
+            local tParams = {
+                HAS_HUMIDITY = HAS_HUMIDITY
+            }
+    
+            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        end
     end
 
     if attributes["fan_mode"] ~= nil then
         local value = attributes["fan_mode"]
-        local operatingModeString = ""
-
-        if value == "Auto low" then
-            operatingModeString = "Auto"
-        elseif value == "Low" then
-            operatingModeString = "On"
-        elseif value == "Circulation" then
-            operatingModeString = "Circulate"
-        end
 
         local tParams = {
-            MODE = operatingModeString
+            MODE = value
         }
 
         C4:SendToProxy(5001, "FAN_MODE_CHANGED", tParams, "NOTIFY")
@@ -261,41 +318,24 @@ function Parse(data)
     end
 
     if attributes["hvac_action"] ~= nil then
-        local hvacActionString = ""
         local value = attributes["hvac_action"]
 
-        if value == "cooling" then
-            hvacActionString = "Cooling"
-        elseif value == "heating" then
-            hvacActionString = "Heating"
-        elseif value == "off" then
-            hvacActionString = "Off"
-        end
-
         local tParams = {
-            STATE = hvacActionString
+            STATE = value
         }
 
         C4:SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
     end
 
     if state ~= nil then
-        local operatingModeString = ""
+        MODE = state
 
-        if state == "off" then
-            operatingModeString = "Off"
-        elseif state == "heat" then
-            operatingModeString = "Heat"
-        elseif state == "cool" then
-            operatingModeString = "Cool"
-        elseif state == "heat_cool" then
-            operatingModeString = "Auto"
+        if state == "heat_cool" then
+            state = "Auto"
         end
 
-        MODE = operatingModeString
-
         local tParams = {
-            MODE = operatingModeString
+            MODE = state
         }
 
         C4:SendToProxy(5001, "HVAC_MODE_CHANGED", tParams, "NOTIFY")
