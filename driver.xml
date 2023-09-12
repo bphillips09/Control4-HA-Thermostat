@@ -69,6 +69,7 @@
 		<setpoint_single_max_f>90</setpoint_single_max_f>
 		<setpoint_single_max_c>32</setpoint_single_max_c>
 		<fan_states>Off,On</fan_states>
+		<hvac_states>Off,Heat,Cool</hvac_states>
 		<has_connection_status>true</has_connection_status>
 		<current_temperature_resolution_f>1</current_temperature_resolution_f>
 		<current_temperature_resolution_c>1</current_temperature_resolution_c>
