@@ -315,17 +315,39 @@ function Parse(data)
         }
 
         C4:SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
+    else
+        local hvacActionValue = attributes["hvac_action"]
+        local fanModeValue = attributes["fan_mode"]
+        local fanStateString = ""
+        if ((not string.find(hvacActionValue, "idle")) or (string.find(fanModeValue, "on"))) then
+            fanStateString = "On"
+        else
+            fanStateString = "Off"
+        end
+
+        local tParams = {
+            STATE = fanStateString
+        }
+
+        C4:SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
     end
+
 
     if attributes["hvac_action"] ~= nil then
         local value = attributes["hvac_action"]
-
+        local c4ReportableState = ""
+        if(string.find(value, "cool")) then c4ReportableState = "Cool"
+            else if(string.find(value, "heat")) then c4ReportableState = "Heat" 
+        else c4ReportableState = "Off"
+        end
+    end
         local tParams = {
-            STATE = value
+            STATE = c4ReportableState
         }
 
         C4:SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
     end
+
 
     if state ~= nil then
         MODE = state
