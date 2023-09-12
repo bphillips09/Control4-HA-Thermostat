@@ -222,7 +222,7 @@ function Parse(data)
     if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, HVAC_MODES) then
         HVAC_MODES = attributes["hvac_modes"]
 
-        local modes = table.concat(HVAC_MODES,",")
+        local modes = table.concat(HVAC_MODES, ",")
 
         modes = modes:gsub("heat_cool", "Auto")
 
@@ -237,7 +237,7 @@ function Parse(data)
     if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, FAN_MODES) then
         FAN_MODES = attributes["fan_modes"]
 
-        local modes = table.concat(FAN_MODES,",")
+        local modes = table.concat(FAN_MODES, ",")
 
         local tParams = {
             MODES = modes
@@ -276,17 +276,17 @@ function Parse(data)
             local tParams = {
                 HAS_HUMIDITY = HAS_HUMIDITY
             }
-    
+
             C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
         end
     else
         if HAS_HUMIDITY == true then
             HAS_HUMIDITY = false
-            
+
             local tParams = {
                 HAS_HUMIDITY = HAS_HUMIDITY
             }
-    
+
             C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
         end
     end
@@ -336,11 +336,15 @@ function Parse(data)
     if attributes["hvac_action"] ~= nil then
         local value = attributes["hvac_action"]
         local c4ReportableState = ""
-        if(string.find(value, "cool")) then c4ReportableState = "Cool"
-            else if(string.find(value, "heat")) then c4ReportableState = "Heat" 
-        else c4ReportableState = "Off"
+        if (string.find(value, "cool")) then
+            c4ReportableState = "Cool"
+        else
+            if (string.find(value, "heat")) then
+                c4ReportableState = "Heat"
+            else
+                c4ReportableState = "Off"
+            end
         end
-    end
         local tParams = {
             STATE = c4ReportableState
         }
