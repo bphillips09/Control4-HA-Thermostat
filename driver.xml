@@ -6,7 +6,7 @@
 	<model>HA Thermostat</model>
 	<created>09/10/2023 12:00</created>
 	<modified>09/10/2023 12:00</modified>
-	<version>1</version>
+	<version>101</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
@@ -111,7 +111,7 @@
 		<connection>
 			<id>7000</id>
 			<facing>6</facing>
-			<connectionname> Selection</connectionname>
+			<connectionname>Selection</connectionname>
 			<type>7</type>
 			<consumer>False</consumer>
 			<audiosource>False</audiosource>
