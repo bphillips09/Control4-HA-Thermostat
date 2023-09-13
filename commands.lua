@@ -22,6 +22,16 @@ local EnumToCapability = {
     [AUX_HEAT] = "AUX_HEAT",
 }
 
+function DRV.OnDriverInit(init)
+    if(PersistData.CurrentTemperatureScale == nil or PersistData.CurrentTemperatureScale == "FAHRENHEIT") then
+		print("Setting scale to °F as Persistent Data reports: ", tostring(PersistData.CurrentTemperatureScale))
+        SetCurrentTemperatureScale("FAHRENHEIT")
+	else 
+        print("Setting scale to °C as Persistent Data reports: ", tostring(PersistData.CurrentTemperatureScale))
+        SetCurrentTemperatureScale("CELSIUS")
+    end
+end
+
 function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
     local mode = tParams["MODE"]
 
@@ -49,6 +59,10 @@ function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
     C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
+function RFP.SET_SCALE(bindingID, action, tParams)
+    SetCurrentTemperatureScale(tParams.SCALE)
+end
+
 function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
     local mode = tParams["MODE"]
 
@@ -73,40 +87,78 @@ function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
 end
 
 function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
+    local cTemperature = tonumber(tParams["CELSIUS"])
     local fTemperature = tonumber(tParams["FAHRENHEIT"])
     local temperatureServiceCall = {}
 
-    if fTemperature <= 0 then
+    if fTemperature <= 0 or cTemperature <= 0 then
         return
     end
 
     if MODE == "heat_cool" then
-        temperatureServiceCall = {
-            domain = "climate",
-            service = "set_temperature",
+        if PersistData.CurrentTemperatureScale == "FAHRENHEIT" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
 
-            service_data = {
-                target_temp_low = fTemperature,
-                target_temp_high = HIGH_TEMP
-            },
+                service_data = {
+                    target_temp_low = fTemperature,
+                    target_temp_high = HIGH_TEMP
+                },
 
-            target = {
-                entity_id = EntityID
+                target = {
+                    entity_id = EntityID
+                }
             }
-        }
+        elseif PersistData.CurrentTemperatureScale == "CELSIUS" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+
+                service_data = {
+                    target_temp_low = cTemperature,
+                    target_temp_high = HIGH_TEMP
+                },
+
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        else
+            print("Something is really wrong, not a valid temperature scale defined in PersistentData!!")
+            return
+        end
     elseif MODE == "heat" then
-        temperatureServiceCall = {
-            domain = "climate",
-            service = "set_temperature",
-
-            service_data = {
-                temperature = fTemperature
-            },
-
-            target = {
-                entity_id = EntityID
+        if PersistData.CurrentTemperatureScale == "FAHRENHEIT" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+    
+                service_data = {
+                    temperature = fTemperature
+                },
+    
+                target = {
+                    entity_id = EntityID
+                }
             }
-        }
+        elseif PersistData.CurrentTemperatureScale == "CELSIUS" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+    
+                service_data = {
+                    temperature = cTemperature
+                },
+    
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        else
+            print("Something is really wrong, not a valid temperature scale defined in PersistentData!!")
+            return
+        end
     end
 
     tParams = {
@@ -117,6 +169,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
 end
 
 function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
+    local cTemperature = tonumber(tParams["CELSIUS"])
     local fTemperature = tonumber(tParams["FAHRENHEIT"])
     local temperatureServiceCall = {}
 
@@ -125,32 +178,69 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
     end
 
     if MODE == "heat_cool" then
-        temperatureServiceCall = {
-            domain = "climate",
-            service = "set_temperature",
+        if PersistData.CurrentTemperatureScale == "FAHRENHEIT" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
 
-            service_data = {
-                target_temp_high = fTemperature,
-                target_temp_low = LOW_TEMP
-            },
+                service_data = {
+                    target_temp_low = fTemperature,
+                    target_temp_high = HIGH_TEMP
+                },
 
-            target = {
-                entity_id = EntityID
+                target = {
+                    entity_id = EntityID
+                }
             }
-        }
+        elseif PersistData.CurrentTemperatureScale == "CELSIUS" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+
+                service_data = {
+                    target_temp_low = cTemperature,
+                    target_temp_high = HIGH_TEMP
+                },
+
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        else
+            print("Something is really wrong, not a valid temperature scale defined in PersistentData!!")
+            return
+        end
     elseif MODE == "cool" then
-        temperatureServiceCall = {
-            domain = "climate",
-            service = "set_temperature",
-
-            service_data = {
-                temperature = fTemperature
-            },
-
-            target = {
-                entity_id = EntityID
+        if PersistData.CurrentTemperatureScale == "FAHRENHEIT" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+    
+                service_data = {
+                    temperature = fTemperature
+                },
+    
+                target = {
+                    entity_id = EntityID
+                }
             }
-        }
+        elseif PersistData.CurrentTemperatureScale == "CELSIUS" then
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+    
+                service_data = {
+                    temperature = cTemperature
+                },
+    
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        else
+            print("Something is really wrong, not a valid temperature scale defined in PersistentData!!")
+            return
+        end
     end
 
     tParams = {
@@ -253,10 +343,10 @@ function Parse(data)
 
     if attributes["current_temperature"] ~= nil then
         local temperature = tonumber(attributes["current_temperature"])
-
+        
         local tParams = {
             TEMPERATURE = temperature,
-            SCALE = "F"
+            SCALE = PersistData.CurrentTemperatureScale
         }
 
         C4:SendToProxy(5001, "TEMPERATURE_CHANGED", tParams, "NOTIFY")
@@ -377,7 +467,7 @@ function Parse(data)
         if state == "heat" then
             local tParams = {
                 SETPOINT = tempValue,
-                SCALE = "F"
+                SCALE = PersistData.CurrentTemperatureScale
             }
 
             C4:SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
@@ -386,7 +476,7 @@ function Parse(data)
         elseif state == "cool" then
             local tParams = {
                 SETPOINT = tempValue,
-                SCALE = "F"
+                SCALE = PersistData.CurrentTemperatureScale
             }
 
             C4:SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
@@ -401,7 +491,7 @@ function Parse(data)
 
         local tParams = {
             SETPOINT = tempValue,
-            SCALE = "F"
+            SCALE = PersistData.CurrentTemperatureScale
         }
 
         C4:SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
@@ -416,7 +506,7 @@ function Parse(data)
 
         local tParams = {
             SETPOINT = tempValue,
-            SCALE = "F"
+            SCALE = PersistData.CurrentTemperatureScale
         }
 
         C4:SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
@@ -424,4 +514,13 @@ function Parse(data)
         LOW_TEMP = tempValue
         HIGH_TEMP = otherValue
     end
+end
+
+function SetCurrentTemperatureScale(scaleStr)
+	PersistData.CurrentTemperatureScale = scaleStr
+	NotifyCurrentTemperatureScale()
+end
+
+function NotifyCurrentTemperatureScale()
+    C4:SendToProxy(5001, "SCALE_CHANGED", {SCALE = PersistData.CurrentTemperatureScale}, "NOTIFY")
 end

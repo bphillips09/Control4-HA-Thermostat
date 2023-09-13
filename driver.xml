@@ -46,7 +46,7 @@
 	<capabilities>
 		<can_heat>true</can_heat>
 		<can_cool>true</can_cool>
-		<can_change_scale>false</can_change_scale>
+		<can_change_scale>true</can_change_scale>
 		<has_extras>false</has_extras>
 		<has_single_setpoint>false</has_single_setpoint>
 		<can_do_auto>true</can_do_auto>
@@ -57,13 +57,13 @@
 		<setpoint_heat_max_f>89</setpoint_heat_max_f>
 		<setpoint_heat_max_c>31</setpoint_heat_max_c>
 		<setpoint_heat_resolution_f>1</setpoint_heat_resolution_f>
-		<setpoint_heat_resolution_c>1</setpoint_heat_resolution_c>
+		<setpoint_heat_resolution_c>.5</setpoint_heat_resolution_c>
 		<setpoint_cool_min_f>42</setpoint_cool_min_f>
 		<setpoint_cool_min_c>6</setpoint_cool_min_c>
 		<setpoint_cool_max_f>90</setpoint_cool_max_f>
 		<setpoint_cool_max_c>32</setpoint_cool_max_c>
 		<setpoint_cool_resolution_f>1</setpoint_cool_resolution_f>
-		<setpoint_cool_resolution_c>1</setpoint_cool_resolution_c>
+		<setpoint_cool_resolution_c>.5</setpoint_cool_resolution_c>
 		<setpoint_single_min_f>42</setpoint_single_min_f>
 		<setpoint_single_min_c>6</setpoint_single_min_c>
 		<setpoint_single_max_f>90</setpoint_single_max_f>
@@ -72,9 +72,9 @@
 		<hvac_states>Off,Heat,Cool</hvac_states>
 		<has_connection_status>true</has_connection_status>
 		<current_temperature_resolution_f>1</current_temperature_resolution_f>
-		<current_temperature_resolution_c>1</current_temperature_resolution_c>
+		<current_temperature_resolution_c>.5</current_temperature_resolution_c>
 		<outdoor_temperature_resolution_f>1</outdoor_temperature_resolution_f>
-		<outdoor_temperature_resolution_c>1</outdoor_temperature_resolution_c>
+		<outdoor_temperature_resolution_c>.5</outdoor_temperature_resolution_c>
 		<scheduling>false</scheduling>
 	</capabilities>
 	<events/>
