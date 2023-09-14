@@ -5,8 +5,8 @@
 	<name>HA Thermostat</name>
 	<model>HA Thermostat</model>
 	<created>09/10/2023 12:00</created>
-	<modified>09/10/2023 12:00</modified>
-	<version>101</version>
+	<modified>09/14/2023 12:00</modified>
+	<version>102</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
@@ -44,6 +44,7 @@
 		<proxy proxybindingid="5001" name="HA Thermostat">thermostatV2</proxy>
 	</proxies>
 	<capabilities>
+		<has_remote_sensor>true</has_remote_sensor>
 		<can_heat>true</can_heat>
 		<can_cool>true</can_cool>
 		<can_change_scale>true</can_change_scale>
@@ -92,6 +93,18 @@
 				</class>
 			</classes>
 		</connection>
+		<connection>
+            <id>1</id>
+            <facing>6</facing>
+            <connectionname>Temperature</connectionname>
+            <type>1</type>
+            <consumer>True</consumer>
+            <classes>
+                <class>
+                    <classname>TEMPERATURE_VALUE</classname>
+                </class>
+            </classes>
+        </connection>
 		<connection>
 			<id>5001</id>
 			<facing>6</facing>

@@ -10,6 +10,7 @@ HVAC_MODES = {}
 FAN_MODES = {}
 PRESET_MODES = {}
 
+HAS_REMOTE_SENSOR = false
 HAS_HUMIDITY = false
 SELECTED_SCALE = ""
 
@@ -32,6 +33,79 @@ function DRV.OnDriverLateInit(init)
     else
         print("Setting scale to °C")
         SetCurrentTemperatureScale("CELSIUS")
+    end
+end
+
+function DRV.OnBindingChanged(idBinding, strClass, bIsBound)   
+    if(bIsBound) then
+        print("Bound binding %d", idBinding)
+
+        if idBinding == 1 then
+    		C4:SendToProxy(idBinding, "QUERY_SETTINGS", {})
+    		C4:SendToProxy(idBinding, "GET_SENSOR_VALUE", {})
+        end
+    else
+        print("Unbound binding %d", idBinding)
+    end
+end
+
+function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
+    HAS_REMOTE_SENSOR = tParams.IN_USE
+    C4:SendToProxy(5001, "REMOTE_SENSOR_CHANGED", tParams, "NOTIFY")
+
+    if HAS_REMOTE_SENSOR == false then
+        tParams = {
+            entity = EntityID
+        }
+	    C4:SendToProxy(999, "HA_GET_STATE", tParams)
+    end
+end
+
+function RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
+    RFP:VALUE_INITIALIZED(strCommand, tParams)
+end
+
+function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
+    if HAS_REMOTE_SENSOR and idBinding == 1 then
+        local ScaleStr = ""
+        local SensorValue
+
+        if (tParams.SCALE ~= nil) then
+            ScaleStr = string.upper(tostring(tParams.SCALE))
+            SensorValue = tonumber(tParams.VALUE)
+        elseif (tParams.CELSIUS ~= nil) then
+            ScaleStr = "CELSIUS"
+            SensorValue = tonumber(tParams.CELSIUS)
+        elseif (tParams.FAHRENHEIT ~= nil) then
+            ScaleStr = "FAHRENHEIT"
+            SensorValue = tonumber(tParams.FAHRENHEIT)
+        end
+
+        local TimeStamp = (tParams.TIMESTAMP ~= nil) and tParams.TIMESTAMP or tostring(os.time())
+
+        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = ScaleStr }, "NOTIFY")
+    end
+end
+
+function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
+    if HAS_REMOTE_SENSOR and idBinding == 1 then
+        local ScaleStr = ""
+        local SensorValue
+
+        if (tParams.SCALE ~= nil) then
+            ScaleStr = string.upper(tostring(tParams.SCALE))
+            SensorValue = tonumber(tParams.VALUE)
+        elseif (tParams.CELSIUS ~= nil) then
+            ScaleStr = "CELSIUS"
+            SensorValue = tonumber(tParams.CELSIUS)
+        elseif (tParams.FAHRENHEIT ~= nil) then
+            ScaleStr = "FAHRENHEIT"
+            SensorValue = tonumber(tParams.FAHRENHEIT)
+        end
+
+        local TimeStamp = (tParams.TIMESTAMP ~= nil) and tParams.TIMESTAMP or tostring(os.time())
+
+        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = ScaleStr }, "NOTIFY")
     end
 end
 
