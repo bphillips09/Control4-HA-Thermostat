@@ -26,7 +26,12 @@ local EnumToCapability = {
 
 function DRV.OnDriverLateInit(init)
     SELECTED_SCALE = C4:PersistGetValue("CurrentTemperatureScale") or "FAHRENHEIT"
-
+    HAS_REMOTE_SENSOR =  C4:PersistGetValue("RemoteSensor") or false
+    local tParams = {
+        IN_USE = HAS_REMOTE_SENSOR
+    }
+    RFP.SET_REMOTE_SENSOR("","",tParams)
+    
     if (SELECTED_SCALE == "FAHRENHEIT") then
         print("Setting scale to °F")
         SetCurrentTemperatureScale("FAHRENHEIT")
@@ -52,7 +57,7 @@ end
 function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
     HAS_REMOTE_SENSOR = tParams.IN_USE
     C4:SendToProxy(5001, "REMOTE_SENSOR_CHANGED", tParams, "NOTIFY")
-
+    C4:PersistSetValue("RemoteSensor", tParams.IN_USE, false)
     if HAS_REMOTE_SENSOR == false then
         tParams = {
             entity = EntityID
