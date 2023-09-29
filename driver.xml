@@ -5,13 +5,13 @@
 	<name>HA Thermostat</name>
 	<model>HA Thermostat</model>
 	<created>09/10/2023 12:00</created>
-	<modified>09/18/2023 12:00</modified>
-	<version>103</version>
+	<modified>09/28/2023 12:00</modified>
+	<version>104</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
 	<config>
-		<script jit="1" file="Control4-HA-Base/driver.lua"/>
+		<script file="Control4-HA-Base/driver.lua" jit="1"/>
 		<properties>
 			<property>
 				<name>Entity ID</name>
@@ -21,7 +21,7 @@
 			</property>
 			<property>
 				<name>Driver Version</name>
-				<default></default>
+				<default/>
 				<type>STRING</type>
 				<readonly>true</readonly>
 			</property>
@@ -35,13 +35,23 @@
 				<default>Off</default>
 				<readonly>false</readonly>
 			</property>
+			<property>
+				<name>Precision</name>
+				<type>LIST</type>
+				<items>
+					<item>1</item>
+					<item>.5</item>
+					<item>.1</item>
+				</items>
+				<default>1</default>
+				<readonly>false</readonly>
+			</property>
 		</properties>
-		<actions>
-		</actions>
+		<actions></actions>
 		<commands/>
 	</config>
 	<proxies>
-		<proxy proxybindingid="5001" name="HA Thermostat">thermostatV2</proxy>
+		<proxy name="HA Thermostat" proxybindingid="5001">thermostatV2</proxy>
 	</proxies>
 	<capabilities>
 		<has_remote_sensor>true</has_remote_sensor>
@@ -57,14 +67,10 @@
 		<setpoint_heat_min_c>4</setpoint_heat_min_c>
 		<setpoint_heat_max_f>89</setpoint_heat_max_f>
 		<setpoint_heat_max_c>31</setpoint_heat_max_c>
-		<setpoint_heat_resolution_f>1</setpoint_heat_resolution_f>
-		<setpoint_heat_resolution_c>.5</setpoint_heat_resolution_c>
 		<setpoint_cool_min_f>42</setpoint_cool_min_f>
 		<setpoint_cool_min_c>6</setpoint_cool_min_c>
 		<setpoint_cool_max_f>90</setpoint_cool_max_f>
 		<setpoint_cool_max_c>32</setpoint_cool_max_c>
-		<setpoint_cool_resolution_f>1</setpoint_cool_resolution_f>
-		<setpoint_cool_resolution_c>.5</setpoint_cool_resolution_c>
 		<setpoint_single_min_f>42</setpoint_single_min_f>
 		<setpoint_single_min_c>6</setpoint_single_min_c>
 		<setpoint_single_max_f>90</setpoint_single_max_f>
@@ -72,10 +78,6 @@
 		<fan_states>Off,On</fan_states>
 		<hvac_states>Off,Heat,Cool</hvac_states>
 		<has_connection_status>true</has_connection_status>
-		<current_temperature_resolution_f>1</current_temperature_resolution_f>
-		<current_temperature_resolution_c>.5</current_temperature_resolution_c>
-		<outdoor_temperature_resolution_f>1</outdoor_temperature_resolution_f>
-		<outdoor_temperature_resolution_c>.5</outdoor_temperature_resolution_c>
 		<scheduling>false</scheduling>
 	</capabilities>
 	<events/>
@@ -94,17 +96,17 @@
 			</classes>
 		</connection>
 		<connection>
-            <id>1</id>
-            <facing>6</facing>
-            <connectionname>Temperature</connectionname>
-            <type>1</type>
-            <consumer>True</consumer>
-            <classes>
-                <class>
-                    <classname>TEMPERATURE_VALUE</classname>
-                </class>
-            </classes>
-        </connection>
+			<id>1</id>
+			<facing>6</facing>
+			<connectionname>Temperature</connectionname>
+			<type>1</type>
+			<consumer>True</consumer>
+			<classes>
+				<class>
+					<classname>TEMPERATURE_VALUE</classname>
+				</class>
+			</classes>
+		</connection>
 		<connection>
 			<id>5001</id>
 			<facing>6</facing>
