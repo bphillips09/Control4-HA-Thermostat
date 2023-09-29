@@ -15,7 +15,8 @@ function DRV.OnDriverLateInit(init)
     }
     RFP.SET_REMOTE_SENSOR("","",tParams)
 
-    C4:SetTimer(30000, function(timer, skips) CheckInTimer(timer, skips) end, true)
+    C4:SetTimer(30000, EC.REFRESH, true)
+
     if (SELECTED_SCALE == "FAHRENHEIT") then
         SetCurrentTemperatureScale("FAHRENHEIT")
     else
@@ -608,8 +609,3 @@ end
 function NotifyCurrentTemperatureScale()
     C4:SendToProxy(5001, "SCALE_CHANGED", { SCALE = SELECTED_SCALE }, "NOTIFY")
 end
-
-function CheckInTimer(timer, skips)
-    EC.REFRESH()
-end
-
