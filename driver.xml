@@ -43,7 +43,7 @@
 					<item>.5</item>
 					<item>.1</item>
 				</items>
-				<default>1</default>
+				<default>1.0</default>
 				<readonly>false</readonly>
 			</property>
 		</properties>

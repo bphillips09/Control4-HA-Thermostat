@@ -23,8 +23,6 @@ function DRV.OnDriverLateInit(init)
         print("Setting scale to °C")
         SetCurrentTemperatureScale("CELSIUS")
     end
-    --print("setting precision to ", Properties["Precision"])
-    --OPC.Precision("Precision")
 end
 
 function DRV.OnBindingChanged(idBinding, strClass, bIsBound)   
@@ -51,24 +49,28 @@ function OPC.Precision(strProperty)
         OUTDOOR_TEMPERATURE_RESOLUTION_F = precisionStrF,
     }
     print("Sending to proxy: " , C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY"))
-    EC.REFRESH()
-end
 
+end
 
 function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
     HAS_REMOTE_SENSOR = tParams.IN_USE
     C4:SendToProxy(5001, "REMOTE_SENSOR_CHANGED", tParams, "NOTIFY")
     C4:PersistSetValue("RemoteSensor", tParams.IN_USE, false)
     if HAS_REMOTE_SENSOR == false then
-        EC.REFRESH()
+        tParams = {
+            entity = EntityID
+        }
+	    C4:SendToProxy(999, "HA_GET_STATE", tParams)
     end
 end
 
 function RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
+    print("temperature initialize!")
     RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
+    print("temperature initialize(d)!")
     if HAS_REMOTE_SENSOR and idBinding == 1 then
         REMOTE_SENSOR_UNAVAIL = false
         local ScaleStr = ""
@@ -78,20 +80,9 @@ function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
             {
             CONNECTED = "true"
         }
+        print("Sending to proxy: Connection ", tostring(connectParams.CONNECTED))
         C4:SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
-        local TimeStamp = (tParams.TIMESTAMP ~= nil) and tParams.TIMESTAMP or tostring(os.time())
-        C4:SendToProxy(5001, "VALUE_INITIALIZED", { STATUS = "active", TimeStamp}, "NOTIFY")
-        EC.REFRESH()
-    end
-end
 
-function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
-    if HAS_REMOTE_SENSOR and idBinding == 1 then
-        local SensorValue
-        if(HAS_REMOTE_SENSOR and REMOTE_SENSOR_UNAVAIL and not (tParams.CELSIUS ~= nil or tParams.FAHRENHEIT ~= nil)) then
-            -- must have missed the initialize, let's init now
-            RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
-        end
         if (tParams.CELSIUS ~= nil and SELECTED_SCALE == "CELSIUS") then
             SensorValue = tonumber(tParams.CELSIUS)
         elseif (tParams.FAHRENHEIT ~= nil and SELECTED_SCALE == "FAHRENHEIT") then
@@ -99,6 +90,39 @@ function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
         else
             SensorValue = tonumber(tParams.FAHRENHEIT)
         end
+
+        local TimeStamp = (tParams.TIMESTAMP ~= nil) and tParams.TIMESTAMP or tostring(os.time())
+        print("Sending initialized to thermostat proxy")
+        C4:SendToProxy(5001, "VALUE_INITIALIZED", { STATUS = "active", TimeStamp}, "NOTIFY")
+        print("sending temp changed to thermostat proxy")
+        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = ScaleStr }, "NOTIFY")
+    end
+end
+
+function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
+    print("value_changed called. has remote sensor:", HAS_REMOTE_SENSOR, " remote sensor unavail: ", REMOTE_SENSOR_UNAVAIL)
+    if HAS_REMOTE_SENSOR and idBinding == 1 then
+        local SensorValue
+        if(HAS_REMOTE_SENSOR and REMOTE_SENSOR_UNAVAIL) then
+            REMOTE_SENSOR_UNAVAIL = true
+            Connected = false
+            local tParams =
+            {
+                CONNECTED = "false"
+            }
+            C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
+        end
+        if (tParams.CELSIUS ~= nil and SELECTED_SCALE == "CELSIUS") then
+            print("scale selected is °C and tParams.CELSIUS is ", tostring(tParams.CELSIUS))
+            SensorValue = tonumber(tParams.CELSIUS)
+        elseif (tParams.FAHRENHEIT ~= nil and SELECTED_SCALE == "FAHRENHEIT") then
+            print("scale selected is °F and tParams.FAHRENHEIT is ", tostring(tParams.FAHRENHEIT))
+            SensorValue = tonumber(tParams.FAHRENHEIT)
+        else
+            print("no scale selected! defaulting to °F and tParams.FAHRENHEIT is ", tostring(tParams.FAHRENHEIT))
+            SensorValue = tonumber(tParams.FAHRENHEIT)
+        end
+
         C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = SELECTED_SCALE }, "NOTIFY")
     end
 end
@@ -111,6 +135,7 @@ function RFP.VALUE_UNAVAILABLE(idBinding, strCommand, tParams)
         {
             CONNECTED = "false"
         }
+
         C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
     end
     
@@ -612,6 +637,11 @@ function NotifyCurrentTemperatureScale()
 end
 
 function CheckInTimer(timer, skips)
-    EC.REFRESH()
+    print("timer expired! refreshing state")
+    local tParams = {
+		entity = EntityID
+	}
+	
+	C4:SendToProxy(999, "HA_GET_STATE", tParams)
 end
 
