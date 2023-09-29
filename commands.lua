@@ -103,26 +103,17 @@ function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
     print("value_changed called. has remote sensor:", HAS_REMOTE_SENSOR, " remote sensor unavail: ", REMOTE_SENSOR_UNAVAIL)
     if HAS_REMOTE_SENSOR and idBinding == 1 then
         local SensorValue
-        if(HAS_REMOTE_SENSOR and REMOTE_SENSOR_UNAVAIL) then
-            REMOTE_SENSOR_UNAVAIL = true
-            Connected = false
-            local tParams =
-            {
-                CONNECTED = "false"
-            }
-            C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
+        if(HAS_REMOTE_SENSOR and REMOTE_SENSOR_UNAVAIL and not (tParams.CELSIUS ~= nil or tParams.FAHRENHEIT ~= nil)) then
+            -- must have missed the initialize, let's init now
+            RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
         end
         if (tParams.CELSIUS ~= nil and SELECTED_SCALE == "CELSIUS") then
-            print("scale selected is °C and tParams.CELSIUS is ", tostring(tParams.CELSIUS))
             SensorValue = tonumber(tParams.CELSIUS)
         elseif (tParams.FAHRENHEIT ~= nil and SELECTED_SCALE == "FAHRENHEIT") then
-            print("scale selected is °F and tParams.FAHRENHEIT is ", tostring(tParams.FAHRENHEIT))
             SensorValue = tonumber(tParams.FAHRENHEIT)
         else
-            print("no scale selected! defaulting to °F and tParams.FAHRENHEIT is ", tostring(tParams.FAHRENHEIT))
             SensorValue = tonumber(tParams.FAHRENHEIT)
         end
-
         C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = SELECTED_SCALE }, "NOTIFY")
     end
 end
@@ -131,12 +122,12 @@ function RFP.VALUE_UNAVAILABLE(idBinding, strCommand, tParams)
     if HAS_REMOTE_SENSOR and idBinding == 1 then
         REMOTE_SENSOR_UNAVAIL = true
         Connected = false
-        local tParams =
+        local connectParams =
         {
             CONNECTED = "false"
         }
-
-        C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
+        print("remote value unavailable")
+        C4:SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
     end
     
 end
