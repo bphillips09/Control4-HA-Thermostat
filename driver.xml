@@ -11,7 +11,7 @@
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
 	<config>
-		<script file="Control4-HA-Base/driver.lua" jit="1"/>
+		<script jit="1" file="Control4-HA-Base/driver.lua"/>
 		<properties>
 			<property>
 				<name>Entity ID</name>
@@ -51,7 +51,7 @@
 		<commands/>
 	</config>
 	<proxies>
-		<proxy name="HA Thermostat" proxybindingid="5001">thermostatV2</proxy>
+		<proxy proxybindingid="5001" name="HA Thermostat">thermostatV2</proxy>
 	</proxies>
 	<capabilities>
 		<has_remote_sensor>true</has_remote_sensor>
