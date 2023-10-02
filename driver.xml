@@ -6,7 +6,7 @@
 	<model>HA Thermostat</model>
 	<created>09/10/2023 12:00</created>
 	<modified>09/28/2023 12:00</modified>
-	<version>104</version>
+	<version>105</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
