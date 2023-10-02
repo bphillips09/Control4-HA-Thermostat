@@ -130,7 +130,7 @@ function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
-    RFP.VALUE_INITIALIZED(strCommand, tParams)
+    RFP:VALUE_INITIALIZED(strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
@@ -162,7 +162,7 @@ function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
     if HAS_REMOTE_SENSOR and idBinding == 1 then
         local SensorValue
         if (HAS_REMOTE_SENSOR and REMOTE_SENSOR_UNAVAIL and not (tParams.CELSIUS ~= nil or tParams.FAHRENHEIT ~= nil)) then
-            RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
+            RFP:VALUE_INITIALIZE(strCommand, tParams)
         end
         if (tParams.CELSIUS ~= nil and SELECTED_SCALE == "CELSIUS") then
             SensorValue = tonumber(tParams.CELSIUS)
@@ -325,7 +325,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
         end
     end
     if(HOLD_TIMER_EXPIRED == true) then
-        RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Permanent"})
+        RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Permanent"})
     end
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
@@ -406,7 +406,7 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
             return
         end
         if(HOLD_TIMER_EXPIRED == true) then
-            RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Permanent"})
+            RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Permanent"})
         end
     end
 
@@ -751,7 +751,7 @@ function HoldTimerExpired(timer, skips)
     HOLD_TIMER_EXPIRED = true
     timer.Cancel()
     ClearThermostatHold()
-    RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Off"})
+    RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Off"})
 end
 
 function UpdateClimateModes()
