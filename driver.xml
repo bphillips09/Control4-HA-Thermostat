@@ -46,6 +46,65 @@
 				<default>1.0</default>
 				<readonly>false</readonly>
 			</property>
+			<property>
+				<name>Hold Modes Enabled</name>
+				<type>LIST</type>
+				<items>
+					<item>False</item>
+					<item>True</item>
+				</items>
+				<default>False</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Clear Hold Entity ID</name>
+				<type>STRING</type>
+				<default>button.thermostat_clear_hold</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Mode States Enabled</name>
+				<type>LIST</type>
+				<items>
+					<item>False</item>
+					<item>True</item>
+				</items>
+				<default>False</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Mode Selection Entity ID</name>
+				<type>STRING</type>
+				<default>select.thermostat_current_mode</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Home Mode Selection</name>
+				<type>LIST</type>
+				<items>
+					<item>Placeholder</item>
+				</items>
+				<default>Placeholder</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Away Mode Selection</name>
+				<type>LIST</type>
+				<items>
+					<item>Placeholder</item>
+				</items>
+				<default>Placeholder</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Sleep Mode Selection</name>
+				<type>LIST</type>
+				<items>
+					<item>Placeholder</item>
+				</items>
+				<default>Placeholder</default>
+				<readonly>false</readonly>
+			</property>
 		</properties>
 		<actions></actions>
 		<commands/>
@@ -58,7 +117,7 @@
 		<can_heat>true</can_heat>
 		<can_cool>true</can_cool>
 		<can_change_scale>true</can_change_scale>
-		<has_extras>false</has_extras>
+		<has_extras>true</has_extras>
 		<has_single_setpoint>false</has_single_setpoint>
 		<can_do_auto>true</can_do_auto>
 		<can_auto>true</can_auto>

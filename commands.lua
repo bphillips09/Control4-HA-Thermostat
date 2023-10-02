@@ -1,27 +1,36 @@
 HVAC_MODES = {}
 FAN_MODES = {}
 PRESET_MODES = {}
+CLIMATE_MODES = {}
 
 HAS_REMOTE_SENSOR = false
 REMOTE_SENSOR_UNAVAIL = false
 HAS_HUMIDITY = false
 SELECTED_SCALE = ""
+HOLD_MODES_ENABLED = false
+MODE_STATES_ENABLED = false
+HOLD_TIMER = nil
+HOLD_TIMER_EXPIRED = true
+
 
 function DRV.OnDriverLateInit(init)
     SELECTED_SCALE = C4:PersistGetValue("CurrentTemperatureScale") or "FAHRENHEIT"
     HAS_REMOTE_SENSOR = C4:PersistGetValue("RemoteSensor") or false
+    HOLD_MODES_ENABLED = Properties["Hold Modes Enabled"] or false
+    MODE_STATES_ENABLED = Properties["Mode States Enabled"] or false
     local tParams = {
         IN_USE = HAS_REMOTE_SENSOR
     }
     RFP.SET_REMOTE_SENSOR("", "", tParams)
-
-    C4:SetTimer(30000, EC.REFRESH, true)
-
+    C4:SetTimer(30000, OnRefreshTimerExpired, true)
+    OPC.Hold_Modes_Enabled("")
+    OPC.Mode_States_Enabled("")
     if (SELECTED_SCALE == "FAHRENHEIT") then
         SetCurrentTemperatureScale("FAHRENHEIT")
     else
         SetCurrentTemperatureScale("CELSIUS")
     end
+
 end
 
 function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
@@ -31,6 +40,66 @@ function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
             C4:SendToProxy(idBinding, "GET_SENSOR_VALUE", {})
         end
     end
+end
+
+function OPC.Hold_Modes_Enabled(strProperty)
+    if (Properties["Hold Modes Enabled"] == "True") then
+        C4:SetPropertyAttribs("Clear Hold Entity ID", 0)
+        HOLD_MODES_ENABLED = true
+        local modes = "Off,Permanent,2 Hours,4 Hours"
+        local tParams = {
+            MODES = modes
+        }
+        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', tParams, "NOTIFY")
+    else
+        C4:SetPropertyAttribs("Clear Hold Entity ID", 1)
+        HOLD_MODES_ENABLED = false
+        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', {MODES = "Permanent"}, "NOTIFY")
+    end
+end
+
+function OPC.Mode_States_Enabled(strProperty)
+    if (Properties["Mode States Enabled"] == "True") then
+        if(MODE_STATES_ENABLED == false) then
+            C4:SetPropertyAttribs("Mode Selection Entity ID", 0)
+            C4:SetPropertyAttribs("Home Mode Selection", 0)
+            C4:SetPropertyAttribs("Away Mode Selection", 0)
+            C4:SetPropertyAttribs("Sleep Mode Selection", 0)
+        end
+        MODE_STATES_ENABLED = true
+        tParams = {
+            entity = Properties["Mode Selection Entity ID"]
+        }
+        C4:SendToProxy(999, "HA_GET_STATE", tParams)
+        UpdateClimateModes()
+        SetupComfortExtras()
+    else
+        C4:SetPropertyAttribs("Mode Selection Entity ID", 1)
+        C4:SetPropertyAttribs("Home Mode Selection", 1)
+        C4:SetPropertyAttribs("Away Mode Selection", 1)
+        C4:SetPropertyAttribs("Sleep Mode Selection", 1)
+        C4:UpdateProperty("Home Mode Selection", "")
+        C4:UpdateProperty("Away Mode Selection", "")
+        C4:UpdateProperty("Sleep Mode Selection", "")
+        MODE_STATES_ENABLED = false
+        UpdateClimateModes()
+        SetupComfortExtras()
+    end
+end
+
+function OPC.Home_Mode_Selection(strProperty)
+    UpdateClimateModes()
+    SetupComfortExtras()
+end
+
+function OPC.Away_Mode_Selection(strProperty)
+    UpdateClimateModes()
+    SetupComfortExtras()
+end
+
+function OPC.Sleep_Mode_Selection(strProperty)
+    UpdateClimateModes()
+    SetupComfortExtras()
 end
 
 function OPC.Precision(strProperty)
@@ -43,7 +112,6 @@ function OPC.Precision(strProperty)
         OUTDOOR_TEMPERATURE_RESOLUTION_C = precisionStr,
         OUTDOOR_TEMPERATURE_RESOLUTION_F = precisionStrF,
     }
-
     C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
 end
 
@@ -61,7 +129,7 @@ function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
-    RFP:VALUE_INITIALIZED(strCommand, tParams)
+    RFP.VALUE_INITIALIZED(strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
@@ -118,6 +186,15 @@ function RFP.VALUE_UNAVAILABLE(idBinding, strCommand, tParams)
 
         C4:SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
     end
+end
+
+ 
+function RFP.SET_MODE_HOLD(idBinding, strCommand, tParams)
+    SetHoldMode(tParams)
+end
+
+function RFP.EXTRAS_CHANGE_COMFORT(idBinding, strCommand, tParams)
+    SelectClimateMode(tParams)
 end
 
 function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
@@ -246,7 +323,9 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
             return
         end
     end
-
+    if(HOLD_TIMER_EXPIRED == true) then
+        RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Permanent"})
+    end
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
     }
@@ -325,6 +404,9 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
         else
             return
         end
+        if(HOLD_TIMER_EXPIRED == true) then
+            RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Permanent"})
+        end
     end
 
     tParams = {
@@ -363,6 +445,28 @@ function Parse(data)
         return
     end
 
+    if data["entity_id"] == Properties["Mode Selection Entity ID"] and MODE_STATES_ENABLED then
+        local options = data["attributes"]["options"]
+        local currentMode = data["state"]
+        local optionsStringCSV = ""
+        for k,v in pairs(options) do
+            optionsStringCSV = optionsStringCSV .. tostring(v) .. ","
+        end
+        if(not string.find(optionsStringCSV, Properties["Home Mode Selection"])) then
+            optionsStringCSV = optionsStringCSV .. tostring(Properties["Home Mode Selection"]) .. ","
+        end
+        if(not string.find(optionsStringCSV, Properties["Away Mode Selection"])) then
+            optionsStringCSV = optionsStringCSV .. tostring(Properties["Away Mode Selection"]) .. ","
+        end
+        if(not string.find(optionsStringCSV, Properties["Sleep Mode Selection"])) then
+            optionsStringCSV = optionsStringCSV .. tostring(Properties["Sleep Mode Selection"]) .. ","
+        end
+        optionsStringCSV = optionsStringCSV:sub(1, -2)
+        C4:UpdatePropertyList("Home Mode Selection",optionsStringCSV, Properties["Home Mode Selection"])
+        C4:UpdatePropertyList("Away Mode Selection",optionsStringCSV, Properties["Away Mode Selection"])
+        C4:UpdatePropertyList("Sleep Mode Selection",optionsStringCSV,Properties["Sleep Mode Selection"])
+        UpdateCurrentClimateMode(currentMode)
+    end
     if data["entity_id"] ~= EntityID then
         return
     end
@@ -608,4 +712,145 @@ end
 
 function NotifyCurrentTemperatureScale()
     C4:SendToProxy(5001, "SCALE_CHANGED", { SCALE = SELECTED_SCALE }, "NOTIFY")
+end
+
+function SetupComfortExtras()
+    local defaultExtras = nil
+	if(not MODE_STATES_ENABLED) then
+        defaultExtras = [[
+		
+	    ]]
+    else
+        defaultExtras = [[
+		    <section label="Comfort Setting Select">
+			    <object type="list" id="comfortSwitch" label="Comfort Setting" command="EXTRAS_CHANGE_COMFORT">
+				    <list maxselections="1" minselections="1">
+	    ]]
+
+        for k,v in pairs (CLIMATE_MODES or {}) do
+            defaultExtras = defaultExtras .. '<item text="'.. v.name .. '" value="'.. v.ref .. '"/>'
+        end
+
+        defaultExtras = defaultExtras .. [[
+				    </list>
+			    </object>
+		    </section>
+	    ]]
+    end
+	local xml = {
+		[[<extras_setup><extra>]],
+			defaultExtras,
+		[[</extra></extras_setup>]],
+	}
+	xml = table.concat (xml)
+	C4:SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
+end
+
+function HoldTimerExpired(timer, skips)
+    HOLD_TIMER_EXPIRED = true
+    timer.Cancel()
+    ClearThermostatHold()
+    RFP.SET_MODE_HOLD(1, "SET_MODE_HOLD", {MODE = "Off"})
+end
+
+function UpdateClimateModes()
+    if(MODE_STATES_ENABLED == true) then
+        CLIMATE_MODES = {
+            {
+                ref = Properties["Away Mode Selection"] or "away",
+                name = "Away",
+            },
+            {
+                ref = Properties["Home Mode Selection"] or "home",
+                name = "Home",
+            },
+            {
+                ref = Properties["Sleep Mode Selection"] or "sleep",
+                name = "Sleep",
+            },
+        }
+    else
+        CLIMATE_MODES = {}
+    end
+end
+
+function UpdateCurrentClimateMode(ref)
+	local xml = '<object id="comfortSwitch" value="' .. ref .. '"/>'
+    UpdateExtras(xml)
+end
+
+function UpdateExtras(xml)
+	local xmlPackage = {
+		[[<extras_state><extra>]],
+			(xml or ''),
+		[[</extra></extras_state>]],
+	}
+	xmlPackage = table.concat (xmlPackage)
+
+	C4:SendToProxy(5001, 'EXTRAS_STATE_CHANGED', {XML = xmlPackage}, "NOTIFY")
+end
+
+function GetNumbersFromText(txt)
+    local str = ""
+    string.gsub(txt,"%d+",function(e) str = str .. e end)
+    return str;
+end
+
+function ClearThermostatHold()
+    local buttonPressServiceCall = {
+        domain = "button",
+        service = "press",
+        service_data = {
+        },
+        target = {
+            entity_id = Properties["Clear Hold Entity ID"]
+        }
+    }
+
+    local tParams = {
+        JSON = JSON:encode(buttonPressServiceCall)
+    }
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+end
+
+function SetHoldMode(tParams)
+    if (tostring(tParams.MODE) == "Permanent") then
+        if HOLD_TIMER ~= nil then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
+    elseif (tostring(tParams.MODE) == "Off") then
+        if HOLD_TIMER ~= nil then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
+        ClearThermostatHold()
+    else
+        local hourValue = tonumber(GetNumbersFromText(tParams.MODE))
+        if(HOLD_TIMER_EXPIRED == false) then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
+        HOLD_TIMER = C4:SetTimer(hourValue * 60 * 60 * 1000, function(timer, skips) HoldTimerExpired(timer, skips) end, false)
+        HOLD_TIMER_EXPIRED = false
+    end
+    C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', tParams, "NOTIFY")
+end
+
+function SelectClimateMode(tParams)
+    local selectServiceCall = {
+        domain = "select",
+        service = "select_option",
+        service_data = {
+            option = tParams.value,
+        },
+        target = {
+            entity_id = Properties["Mode Selection Entity ID"]
+        }
+    }
+    local requestParams = {
+        JSON = JSON:encode(selectServiceCall)
+    }
+    C4:SendToProxy(999, "HA_CALL_SERVICE", requestParams)
+end
+
+function OnRefreshTimerExpired()
+    EC.REFRESH()
+    if(MODE_STATES_ENABLED) then
+        tParams = {
+            entity = Properties["Mode Selection Entity ID"]
+        }
+        C4:SendToProxy(999, "HA_GET_STATE", tParams)
+    end
 end
