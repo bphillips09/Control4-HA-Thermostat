@@ -21,16 +21,16 @@ function DRV.OnDriverLateInit(init)
     local tParams = {
         IN_USE = HAS_REMOTE_SENSOR
     }
-    RFP.SET_REMOTE_SENSOR("", "", tParams)
+    RFP.SET_REMOTE_SENSOR(nil, nil, tParams)
     C4:SetTimer(30000, OnRefreshTimerExpired, true)
-    OPC.Hold_Modes_Enabled("")
-    OPC.Mode_States_Enabled("")
+    OPC.Hold_Modes_Enabled()
+    OPC.Mode_States_Enabled()
+
     if (SELECTED_SCALE == "FAHRENHEIT") then
         SetCurrentTemperatureScale("FAHRENHEIT")
     else
         SetCurrentTemperatureScale("CELSIUS")
     end
-
 end
 
 function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
@@ -55,6 +55,7 @@ function OPC.Hold_Modes_Enabled(strProperty)
         C4:SetPropertyAttribs("Clear Hold Entity ID", 1)
         HOLD_MODES_ENABLED = false
         C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', {MODES = "Permanent"}, "NOTIFY")
+        C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', {MODE = "Permanent"}, "NOTIFY")
     end
 end
 
