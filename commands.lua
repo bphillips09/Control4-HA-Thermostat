@@ -846,10 +846,7 @@ function SelectClimateMode(tParams)
 end
 
 function OnRefreshTimerExpired()
-    local tParams = {
-		entity = EntityID
-	}
-	C4:SendToProxy(999, "HA_GET_STATE", tParams)
+    EC.REFRESH()
     if(MODE_STATES_ENABLED) then
         tParams = {
             entity = Properties["Mode Selection Entity ID"]
