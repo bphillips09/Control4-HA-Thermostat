@@ -20,22 +20,6 @@
 				<default>climate.thermostat</default>
 			</property>
 			<property>
-				<name>Driver Version</name>
-				<default/>
-				<type>STRING</type>
-				<readonly>true</readonly>
-			</property>
-			<property>
-				<name>Debug Mode</name>
-				<type>LIST</type>
-				<items>
-					<item>Off</item>
-					<item>On</item>
-				</items>
-				<default>Off</default>
-				<readonly>false</readonly>
-			</property>
-			<property>
 				<name>Precision</name>
 				<type>LIST</type>
 				<items>
@@ -103,6 +87,32 @@
 					<item>Placeholder</item>
 				</items>
 				<default>Placeholder</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Poll Timer</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Driver Version</name>
+				<default/>
+				<type>STRING</type>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Debug Mode</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
 				<readonly>false</readonly>
 			</property>
 		</properties>

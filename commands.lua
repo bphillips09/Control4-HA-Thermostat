@@ -12,7 +12,6 @@ MODE_STATES_ENABLED = false
 HOLD_TIMER = nil
 HOLD_TIMER_EXPIRED = true
 
-
 function DRV.OnDriverLateInit(init)
     SELECTED_SCALE = C4:PersistGetValue("CurrentTemperatureScale") or "FAHRENHEIT"
     HAS_REMOTE_SENSOR = C4:PersistGetValue("RemoteSensor") or false
@@ -54,14 +53,14 @@ function OPC.Hold_Modes_Enabled(strProperty)
     else
         C4:SetPropertyAttribs("Clear Hold Entity ID", 1)
         HOLD_MODES_ENABLED = false
-        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', {MODES = "Permanent"}, "NOTIFY")
-        C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', {MODE = "Permanent"}, "NOTIFY")
+        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', { MODES = "Permanent" }, "NOTIFY")
+        C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', { MODE = "Permanent" }, "NOTIFY")
     end
 end
 
 function OPC.Mode_States_Enabled(strProperty)
     if (Properties["Mode States Enabled"] == "True") then
-        if(MODE_STATES_ENABLED == false) then
+        if (MODE_STATES_ENABLED == false) then
             C4:SetPropertyAttribs("Mode Selection Entity ID", 0)
             C4:SetPropertyAttribs("Home Mode Selection", 0)
             C4:SetPropertyAttribs("Away Mode Selection", 0)
@@ -189,7 +188,6 @@ function RFP.VALUE_UNAVAILABLE(idBinding, strCommand, tParams)
     end
 end
 
- 
 function RFP.SET_MODE_HOLD(idBinding, strCommand, tParams)
     SetHoldMode(tParams)
 end
@@ -324,8 +322,8 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
             return
         end
     end
-    if(HOLD_TIMER_EXPIRED == true) then
-        RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Permanent"})
+    if (HOLD_TIMER_EXPIRED == true) then
+        RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
     end
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
@@ -405,8 +403,8 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
         else
             return
         end
-        if(HOLD_TIMER_EXPIRED == true) then
-            RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Permanent"})
+        if (HOLD_TIMER_EXPIRED == true) then
+            RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
         end
     end
 
@@ -450,22 +448,22 @@ function Parse(data)
         local options = data["attributes"]["options"]
         local currentMode = data["state"]
         local optionsStringCSV = ""
-        for k,v in pairs(options) do
+        for k, v in pairs(options) do
             optionsStringCSV = optionsStringCSV .. tostring(v) .. ","
         end
-        if(not string.find(optionsStringCSV, Properties["Home Mode Selection"])) then
+        if (not string.find(optionsStringCSV, Properties["Home Mode Selection"])) then
             optionsStringCSV = optionsStringCSV .. tostring(Properties["Home Mode Selection"]) .. ","
         end
-        if(not string.find(optionsStringCSV, Properties["Away Mode Selection"])) then
+        if (not string.find(optionsStringCSV, Properties["Away Mode Selection"])) then
             optionsStringCSV = optionsStringCSV .. tostring(Properties["Away Mode Selection"]) .. ","
         end
-        if(not string.find(optionsStringCSV, Properties["Sleep Mode Selection"])) then
+        if (not string.find(optionsStringCSV, Properties["Sleep Mode Selection"])) then
             optionsStringCSV = optionsStringCSV .. tostring(Properties["Sleep Mode Selection"]) .. ","
         end
         optionsStringCSV = optionsStringCSV:sub(1, -2)
-        C4:UpdatePropertyList("Home Mode Selection",optionsStringCSV, Properties["Home Mode Selection"])
-        C4:UpdatePropertyList("Away Mode Selection",optionsStringCSV, Properties["Away Mode Selection"])
-        C4:UpdatePropertyList("Sleep Mode Selection",optionsStringCSV,Properties["Sleep Mode Selection"])
+        C4:UpdatePropertyList("Home Mode Selection", optionsStringCSV, Properties["Home Mode Selection"])
+        C4:UpdatePropertyList("Away Mode Selection", optionsStringCSV, Properties["Away Mode Selection"])
+        C4:UpdatePropertyList("Sleep Mode Selection", optionsStringCSV, Properties["Sleep Mode Selection"])
         UpdateCurrentClimateMode(currentMode)
     end
     if data["entity_id"] ~= EntityID then
@@ -717,7 +715,7 @@ end
 
 function SetupComfortExtras()
     local defaultExtras = nil
-	if(not MODE_STATES_ENABLED) then
+    if (not MODE_STATES_ENABLED) then
         defaultExtras = [[
 		
 	    ]]
@@ -728,8 +726,8 @@ function SetupComfortExtras()
 				    <list maxselections="1" minselections="1">
 	    ]]
 
-        for k,v in pairs (CLIMATE_MODES or {}) do
-            defaultExtras = defaultExtras .. '<item text="'.. v.name .. '" value="'.. v.ref .. '"/>'
+        for k, v in pairs(CLIMATE_MODES or {}) do
+            defaultExtras = defaultExtras .. '<item text="' .. v.name .. '" value="' .. v.ref .. '"/>'
         end
 
         defaultExtras = defaultExtras .. [[
@@ -738,24 +736,24 @@ function SetupComfortExtras()
 		    </section>
 	    ]]
     end
-	local xml = {
-		[[<extras_setup><extra>]],
-			defaultExtras,
-		[[</extra></extras_setup>]],
-	}
-	xml = table.concat (xml)
-	C4:SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
+    local xml = {
+        [[<extras_setup><extra>]],
+        defaultExtras,
+        [[</extra></extras_setup>]],
+    }
+    xml = table.concat(xml)
+    C4:SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
 end
 
 function HoldTimerExpired(timer, skips)
     HOLD_TIMER_EXPIRED = true
     timer.Cancel()
     ClearThermostatHold()
-    RFP:SET_MODE_HOLD("SET_MODE_HOLD", {MODE = "Off"})
+    RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Off" })
 end
 
 function UpdateClimateModes()
-    if(MODE_STATES_ENABLED == true) then
+    if (MODE_STATES_ENABLED == true) then
         CLIMATE_MODES = {
             {
                 ref = Properties["Away Mode Selection"] or "away",
@@ -776,24 +774,24 @@ function UpdateClimateModes()
 end
 
 function UpdateCurrentClimateMode(ref)
-	local xml = '<object id="comfortSwitch" value="' .. ref .. '"/>'
+    local xml = '<object id="comfortSwitch" value="' .. ref .. '"/>'
     UpdateExtras(xml)
 end
 
 function UpdateExtras(xml)
-	local xmlPackage = {
-		[[<extras_state><extra>]],
-			(xml or ''),
-		[[</extra></extras_state>]],
-	}
-	xmlPackage = table.concat (xmlPackage)
+    local xmlPackage = {
+        [[<extras_state><extra>]],
+        (xml or ''),
+        [[</extra></extras_state>]],
+    }
+    xmlPackage = table.concat(xmlPackage)
 
-	C4:SendToProxy(5001, 'EXTRAS_STATE_CHANGED', {XML = xmlPackage}, "NOTIFY")
+    C4:SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = xmlPackage }, "NOTIFY")
 end
 
 function GetNumbersFromText(txt)
     local str = ""
-    string.gsub(txt,"%d+",function(e) str = str .. e end)
+    string.gsub(txt, "%d+", function(e) str = str .. e end)
     return str;
 end
 
@@ -816,14 +814,24 @@ end
 
 function SetHoldMode(tParams)
     if (tostring(tParams.MODE) == "Permanent") then
-        if HOLD_TIMER ~= nil then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
+        if HOLD_TIMER ~= nil then
+            HOLD_TIMER.Cancel()
+            HOLD_TIMER_EXPIRED = true
+        end
     elseif (tostring(tParams.MODE) == "Off") then
-        if HOLD_TIMER ~= nil then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
+        if HOLD_TIMER ~= nil then
+            HOLD_TIMER.Cancel()
+            HOLD_TIMER_EXPIRED = true
+        end
         ClearThermostatHold()
     else
         local hourValue = tonumber(GetNumbersFromText(tParams.MODE))
-        if(HOLD_TIMER_EXPIRED == false) then HOLD_TIMER.Cancel() HOLD_TIMER_EXPIRED = true end
-        HOLD_TIMER = C4:SetTimer(hourValue * 60 * 60 * 1000, function(timer, skips) HoldTimerExpired(timer, skips) end, false)
+        if (HOLD_TIMER_EXPIRED == false) then
+            HOLD_TIMER.Cancel()
+            HOLD_TIMER_EXPIRED = true
+        end
+        HOLD_TIMER = C4:SetTimer(hourValue * 60 * 60 * 1000, function(timer, skips) HoldTimerExpired(timer, skips) end,
+            false)
         HOLD_TIMER_EXPIRED = false
     end
     C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', tParams, "NOTIFY")
@@ -848,7 +856,7 @@ end
 
 function OnRefreshTimerExpired()
     EC.REFRESH()
-    if(MODE_STATES_ENABLED) then
+    if (MODE_STATES_ENABLED) then
         tParams = {
             entity = Properties["Mode Selection Entity ID"]
         }
