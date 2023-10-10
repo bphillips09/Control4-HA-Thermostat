@@ -129,13 +129,13 @@ function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZE(idBinding, strCommand, tParams)
-    RFP:VALUE_INITIALIZED(strCommand, tParams)
+    RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
 end
 
 function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
     if HAS_REMOTE_SENSOR and idBinding == 1 then
         REMOTE_SENSOR_UNAVAIL = false
-        local ScaleStr = ""
+        local ScaleStr = SELECTED_SCALE
         local SensorValue
         Connected = true
         local connectParams =
