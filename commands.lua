@@ -6,11 +6,16 @@ CLIMATE_MODES = {}
 HAS_REMOTE_SENSOR = false
 REMOTE_SENSOR_UNAVAIL = false
 HAS_HUMIDITY = false
+CURRENT_MODE = ""
 SELECTED_SCALE = ""
 HOLD_MODES_ENABLED = false
 MODE_STATES_ENABLED = false
 HOLD_TIMER = nil
 HOLD_TIMER_EXPIRED = true
+
+LAST_PRECISION = 1.0
+LAST_MIN = 0
+LAST_MAX = 100
 
 function DRV.OnDriverLateInit(init)
     SELECTED_SCALE = C4:PersistGetValue("CurrentTemperatureScale") or "FAHRENHEIT"
@@ -474,6 +479,7 @@ function Parse(data)
         C4:UpdatePropertyList("Sleep Mode Selection", optionsStringCSV, Properties["Sleep Mode Selection"])
         UpdateCurrentClimateMode(currentMode)
     end
+
     if data["entity_id"] ~= EntityID then
         return
     end
@@ -503,7 +509,88 @@ function Parse(data)
         C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
     end
 
-    local selectedAttribute = attributes["hvac_modes"]
+    local selectedAttribute = attributes["target_temp_step"]
+    if selectedAttribute ~= nil and LAST_PRECISION ~= tonumber(selectedAttribute) then
+        LAST_PRECISION = tonumber(selectedAttribute)
+
+        local tParams = {
+            TEMPERATURE_RESOLUTION_C = LAST_PRECISION,
+            TEMPERATURE_RESOLUTION_F = LAST_PRECISION,
+            OUTDOOR_TEMPERATURE_RESOLUTION_C = LAST_PRECISION,
+            OUTDOOR_TEMPERATURE_RESOLUTION_F = LAST_PRECISION,
+        }
+
+        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["min_temp"]
+    if selectedAttribute ~= nil and LAST_MIN ~= tonumber(selectedAttribute) then
+        local minTemp = tonumber(selectedAttribute)
+        LAST_MIN = minTemp
+
+        local tParams = {}
+
+        if SELECTED_SCALE == "FAHRENHEIT" then
+            tParams["COOL_SETPOINT_MIN_F"] = minTemp
+            tParams["HEAT_SETPOINT_MIN_F"] = minTemp
+            tParams["SINGLE_SETPOINT_MIN_F"] = minTemp
+        else
+            tParams["COOL_SETPOINT_MIN_C"] = minTemp
+            tParams["HEAT_SETPOINT_MIN_C"] = minTemp
+            tParams["SINGLE_SETPOINT_MIN_C"] = minTemp
+        end
+
+        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["max_temp"]
+    if selectedAttribute ~= nil and LAST_MAX ~= tonumber(selectedAttribute) then
+        local maxTemp = tonumber(selectedAttribute)
+        LAST_MAX = maxTemp
+
+        local tParams = {}
+
+        if SELECTED_SCALE == "FAHRENHEIT" then
+            tParams["COOL_SETPOINT_MAX_F"] = maxTemp
+            tParams["HEAT_SETPOINT_MAX_F"] = maxTemp
+            tParams["SINGLE_SETPOINT_MAX_F"] = maxTemp
+        else
+            tParams["COOL_SETPOINT_MAX_C"] = maxTemp
+            tParams["HEAT_SETPOINT_MAX_C"] = maxTemp
+            tParams["SINGLE_SETPOINT_MAX_C"] = maxTemp
+        end
+
+        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    end
+
+    if attributes["min_temp"] == nil or attributes["max_temp"] == nil then
+        local minF = 38
+        local maxF = 90
+        local minC = 4
+        local maxC = 32
+
+        local tParams = {
+            COOL_SETPOINT_MIN_F = minF,
+            HEAT_SETPOINT_MIN_F = minF,
+            SINGLE_SETPOINT_MIN_F = minF,
+
+            COOL_SETPOINT_MAX_F = maxF,
+            HEAT_SETPOINT_MAX_F = maxF,
+            SINGLE_SETPOINT_MAX_F = maxF,
+
+            COOL_SETPOINT_MIN_C = minC,
+            HEAT_SETPOINT_MIN_C = minC,
+            SINGLE_SETPOINT_MIN_C = minC,
+
+            COOL_SETPOINT_MAX_C = maxC,
+            HEAT_SETPOINT_MAX_C = maxC,
+            SINGLE_SETPOINT_MAX_C = maxC
+        }
+
+        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["hvac_modes"]
     if selectedAttribute ~= nil and not TablesMatch(selectedAttribute, HVAC_MODES) then
         HVAC_MODES = attributes["hvac_modes"]
 
@@ -526,6 +613,12 @@ function Parse(data)
 
         local tParams = {
             MODES = modes
+        }
+
+        C4:SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
+    elseif selectedAttribute == nil then
+        local tParams = {
+            MODES = {}
         }
 
         C4:SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
@@ -601,8 +694,8 @@ function Parse(data)
 
         C4:SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
     else
-        local hvacActionValue = attributes["hvac_action"]
-        local fanModeValue = attributes["fan_mode"]
+        local hvacActionValue = attributes["hvac_action"] or "off"
+        local fanModeValue = attributes["fan_mode"] or "off"
         local fanStateString = ""
         if ((not string.find(hvacActionValue, "idle")) or (string.find(fanModeValue, "on"))) then
             fanStateString = "On"
@@ -620,16 +713,18 @@ function Parse(data)
 
     if attributes["hvac_action"] ~= nil then
         local value = attributes["hvac_action"]
-        local c4ReportableState = ""
+        local c4ReportableState = "Off"
+
         if (string.find(value, "cool")) then
             c4ReportableState = "Cool"
-        else
-            if (string.find(value, "heat")) then
-                c4ReportableState = "Heat"
-            else
-                c4ReportableState = "Off"
-            end
+        elseif (string.find(value, "heat")) then
+            c4ReportableState = "Heat"
+        elseif (string.find(value, "dry")) then
+            c4ReportableState = "Dry"
+        elseif (string.find(value, "fan")) then
+            c4ReportableState = "Fan"
         end
+
         local tParams = {
             STATE = c4ReportableState
         }
@@ -648,6 +743,8 @@ function Parse(data)
         local tParams = {
             MODE = state
         }
+
+        CURRENT_MODE = state
 
         C4:SendToProxy(5001, "HVAC_MODE_CHANGED", tParams, "NOTIFY")
     end
@@ -678,6 +775,12 @@ function Parse(data)
 
             HIGH_TEMP = tempValue
         end
+    elseif attributes["temperature"] == nil or attributes["temperature"] == "null" then
+        local tParams = {
+            STATE = "Off"
+        }
+
+        C4:SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
     end
 
     if attributes["target_temp_high"] ~= nil and attributes["target_temp_high"] ~= "null" then
