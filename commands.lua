@@ -261,6 +261,8 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
 
     if MODE == "heat_cool" then
         if SELECTED_SCALE == "FAHRENHEIT" then
+            LOW_TEMP = fTemperature
+
             temperatureServiceCall = {
                 domain = "climate",
                 service = "set_temperature",
@@ -275,6 +277,8 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
                 }
             }
         elseif SELECTED_SCALE == "CELSIUS" then
+            LOW_TEMP = cTemperature
+
             temperatureServiceCall = {
                 domain = "climate",
                 service = "set_temperature",
@@ -343,13 +347,15 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
 
     if MODE == "heat_cool" then
         if SELECTED_SCALE == "FAHRENHEIT" then
+            HIGH_TEMP = fTemperature
+
             temperatureServiceCall = {
                 domain = "climate",
                 service = "set_temperature",
 
                 service_data = {
-                    target_temp_low = fTemperature,
-                    target_temp_high = HIGH_TEMP
+                    target_temp_low = LOW_TEMP,
+                    target_temp_high = fTemperature
                 },
 
                 target = {
@@ -357,13 +363,15 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
                 }
             }
         elseif SELECTED_SCALE == "CELSIUS" then
+            HIGH_TEMP = cTemperature
+
             temperatureServiceCall = {
                 domain = "climate",
                 service = "set_temperature",
 
                 service_data = {
-                    target_temp_low = cTemperature,
-                    target_temp_high = HIGH_TEMP
+                    target_temp_low = LOW_TEMP,
+                    target_temp_high = cTemperature
                 },
 
                 target = {
