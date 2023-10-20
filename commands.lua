@@ -12,7 +12,10 @@ HOLD_MODES_ENABLED = false
 MODE_STATES_ENABLED = false
 HOLD_TIMER = nil
 HOLD_TIMER_EXPIRED = true
+LAST_HA_AUTO = false
+HAS_HA_AUTO = false
 
+FALLBACK_RESOLUTION = 1.0
 LAST_RESOLUTION = 1.0
 LAST_MIN = 0
 LAST_MAX = 100
@@ -107,10 +110,10 @@ function OPC.Sleep_Mode_Selection(strProperty)
     SetupComfortExtras()
 end
 
-function OPC.Precision(strProperty)
+function OPC.Display_Precision(strProperty)
     local precisionStr = Properties["Display Precision"]
     local precisionStrF = Properties["Display Precision"]
-    if precisionStrF == ".1" then precisionStrF = ".2" end
+    if precisionStrF == "0.1" then precisionStrF = "0.2" end
 
     local tParams = {
         TEMPERATURE_RESOLUTION_C = precisionStr,
@@ -120,6 +123,10 @@ function OPC.Precision(strProperty)
     }
 
     C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+end
+
+function OPC.Fallback_Precision(strProperty)
+    FALLBACK_RESOLUTION = tonumber(strProperty)
 end
 
 function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
@@ -207,7 +214,11 @@ function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
     local mode = tParams["MODE"]
 
     if mode == "Auto" then
-        mode = "heat_cool"
+        if HAS_HA_AUTO then
+            mode = "auto"
+        else
+            mode = "heat_cool"
+        end
     end
 
     local hvacModeServiceCall = {
@@ -336,6 +347,64 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
     if (HOLD_TIMER_EXPIRED == true) then
         RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
     end
+    tParams = {
+        JSON = JSON:encode(temperatureServiceCall)
+    }
+
+    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+end
+
+function RFP.SET_SETPOINT_SINGLE(idBinding, strCommand, tParams)
+    local cTemperature = tonumber(tParams["CELSIUS"])
+    local fTemperature = tonumber(tParams["FAHRENHEIT"])
+    local temperatureServiceCall = {}
+
+    if fTemperature <= 0 or cTemperature <= 0 then
+        return
+    end
+
+    if MODE == "auto" then
+        if SELECTED_SCALE == "FAHRENHEIT" then
+            LOW_TEMP = fTemperature
+            HIGH_TEMP = fTemperature
+
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+
+                service_data = {
+                    temperature = fTemperature
+                },
+
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        elseif SELECTED_SCALE == "CELSIUS" then
+            LOW_TEMP = cTemperature
+            HIGH_TEMP = cTemperature
+
+            temperatureServiceCall = {
+                domain = "climate",
+                service = "set_temperature",
+
+                service_data = {
+                    temperature = cTemperature
+                },
+
+                target = {
+                    entity_id = EntityID
+                }
+            }
+        else
+            return
+        end
+    end
+
+    if (HOLD_TIMER_EXPIRED == true) then
+        RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
+    end
+
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
     }
@@ -523,6 +592,17 @@ function Parse(data)
         }
 
         C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    elseif selectedAttribute == nil and LAST_RESOLUTION ~= FALLBACK_RESOLUTION then
+        LAST_RESOLUTION = FALLBACK_RESOLUTION
+
+        local tParams = {
+            HEAT_SETPOINT_RESOLUTION_F = LAST_RESOLUTION,
+            COOL_SETPOINT_RESOLUTION_F = LAST_RESOLUTION,
+            HEAT_SETPOINT_RESOLUTION_C = LAST_RESOLUTION,
+            COOL_SETPOINT_RESOLUTION_C = LAST_RESOLUTION
+        }
+    
+        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["min_temp"]
@@ -597,6 +677,16 @@ function Parse(data)
         HVAC_MODES = attributes["hvac_modes"]
 
         local modes = table.concat(HVAC_MODES, ",")
+
+        HAS_HA_AUTO = (string.find(modes, "auto") and not string.find(modes, "heat_cool"))
+
+        if HAS_HA_AUTO ~= LAST_HA_AUTO then
+            local tParams = {
+                HAS_SINGLE_SETPOINT = HAS_HA_AUTO
+            }
+
+            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        end
 
         modes = modes:gsub("heat_cool", "Auto")
 
@@ -775,6 +865,16 @@ function Parse(data)
 
             C4:SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
 
+            HIGH_TEMP = tempValue
+        elseif state == "auto" then
+            local tParams = {
+                SETPOINT = tempValue,
+                SCALE = SELECTED_SCALE
+            }
+
+            C4:SendToProxy(5001, "SINGLE_SETPOINT_CHANGED", tParams, "NOTIFY")
+
+            LOW_TEMP = tempValue
             HIGH_TEMP = tempValue
         end
     elseif attributes["temperature"] == nil or attributes["temperature"] == "null" then

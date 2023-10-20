@@ -23,9 +23,20 @@
 				<name>Display Precision</name>
 				<type>LIST</type>
 				<items>
-					<item>1</item>
-					<item>.5</item>
-					<item>.1</item>
+					<item>1.0</item>
+					<item>0.5</item>
+					<item>0.1</item>
+				</items>
+				<default>1.0</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Fallback Precision</name>
+				<type>LIST</type>
+				<items>
+					<item>1.0</item>
+					<item>0.5</item>
+					<item>0.1</item>
 				</items>
 				<default>1.0</default>
 				<readonly>false</readonly>
