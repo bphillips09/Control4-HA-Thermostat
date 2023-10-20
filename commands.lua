@@ -13,7 +13,7 @@ MODE_STATES_ENABLED = false
 HOLD_TIMER = nil
 HOLD_TIMER_EXPIRED = true
 
-LAST_PRECISION = 1.0
+LAST_RESOLUTION = 1.0
 LAST_MIN = 0
 LAST_MAX = 100
 
@@ -108,15 +108,17 @@ function OPC.Sleep_Mode_Selection(strProperty)
 end
 
 function OPC.Precision(strProperty)
-    local precisionStr = Properties["Precision"]
-    local precisionStrF = Properties["Precision"]
+    local precisionStr = Properties["Display Precision"]
+    local precisionStrF = Properties["Display Precision"]
     if precisionStrF == ".1" then precisionStrF = ".2" end
+
     local tParams = {
         TEMPERATURE_RESOLUTION_C = precisionStr,
         TEMPERATURE_RESOLUTION_F = precisionStrF,
         OUTDOOR_TEMPERATURE_RESOLUTION_C = precisionStr,
         OUTDOOR_TEMPERATURE_RESOLUTION_F = precisionStrF,
     }
+
     C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
 end
 
@@ -510,14 +512,14 @@ function Parse(data)
     end
 
     local selectedAttribute = attributes["target_temp_step"]
-    if selectedAttribute ~= nil and LAST_PRECISION ~= tonumber(selectedAttribute) then
-        LAST_PRECISION = tonumber(selectedAttribute)
+    if selectedAttribute ~= nil and LAST_RESOLUTION ~= tonumber(selectedAttribute) then
+        LAST_RESOLUTION = tonumber(selectedAttribute)
 
         local tParams = {
-            TEMPERATURE_RESOLUTION_C = LAST_PRECISION,
-            TEMPERATURE_RESOLUTION_F = LAST_PRECISION,
-            OUTDOOR_TEMPERATURE_RESOLUTION_C = LAST_PRECISION,
-            OUTDOOR_TEMPERATURE_RESOLUTION_F = LAST_PRECISION,
+            HEAT_SETPOINT_RESOLUTION_F = LAST_RESOLUTION,
+            COOL_SETPOINT_RESOLUTION_F = LAST_RESOLUTION,
+            HEAT_SETPOINT_RESOLUTION_C = LAST_RESOLUTION,
+            COOL_SETPOINT_RESOLUTION_C = LAST_RESOLUTION
         }
 
         C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")

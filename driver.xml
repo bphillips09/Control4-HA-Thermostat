@@ -20,7 +20,7 @@
 				<default>climate.example</default>
 			</property>
 			<property>
-				<name>Precision</name>
+				<name>Display Precision</name>
 				<type>LIST</type>
 				<items>
 					<item>1</item>
