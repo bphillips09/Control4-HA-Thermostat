@@ -42,6 +42,16 @@
 				<readonly>false</readonly>
 			</property>
 			<property>
+				<name>Scheduling Enabled</name>
+				<type>LIST</type>
+				<items>
+					<item>False</item>
+					<item>True</item>
+				</items>
+				<default>False</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
 				<name>Hold Modes Enabled</name>
 				<type>LIST</type>
 				<items>
@@ -143,7 +153,7 @@
 		<can_do_auto>true</can_do_auto>
 		<can_auto>true</can_auto>
 		<can_calibrate>false</can_calibrate>
-		
+
 		<setpoint_heat_min_f>38</setpoint_heat_min_f>
 		<setpoint_heat_min_c>4</setpoint_heat_min_c>
 		<setpoint_heat_max_f>110</setpoint_heat_max_f>
@@ -165,8 +175,8 @@
 		<hvac_states>Off,Heat,Cool,Dry,Fan</hvac_states>
 		<has_connection_status>true</has_connection_status>
 
-		<can_preset_schedule>false</can_preset_schedule>
-		<can_preset>false</can_preset>
+		<can_preset_schedule>true</can_preset_schedule>
+		<can_preset>true</can_preset>
 	</capabilities>
 	<events/>
 	<connections>

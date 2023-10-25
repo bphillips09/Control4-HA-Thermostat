@@ -17,6 +17,7 @@ HAS_HA_AUTO = false
 IS_HA_AUTO = false
 LAST_HA_AUTO = false
 SENT_INITIAL_PRESETS = false
+PRESETS = {}
 
 SETPOINT_RESOLUTION = 1.0
 LAST_MIN = 0
@@ -50,6 +51,18 @@ function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
             C4:SendToProxy(idBinding, "GET_SENSOR_VALUE", {})
         end
     end
+end
+
+function OPC.Scheduling_Enabled(strProperty)
+    local schedulingEnabled = false
+
+    if strProperty == "True" then
+        schedulingEnabled = true
+    else
+        schedulingEnabled = false
+    end
+
+    C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', { CAN_PRESET_SCHEDULE = schedulingEnabled }, "NOTIFY")
 end
 
 function OPC.Hold_Modes_Enabled(strProperty)
@@ -260,7 +273,7 @@ end
 function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
     local mode = tParams["MODE"]
 
-    local hvacModeServiceCall = {
+    local fanModeServiceCall = {
         domain = "climate",
         service = "set_fan_mode",
 
@@ -274,7 +287,7 @@ function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
     }
 
     tParams = {
-        JSON = JSON:encode(hvacModeServiceCall)
+        JSON = JSON:encode(fanModeServiceCall)
     }
 
     C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
@@ -509,16 +522,82 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
     C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
-function RFP.UPDATE_SCHEDULE_ENTRIES(idBinding, strCommand, tParams)
-    print("-- UPDATE SCHEDULE --")
-end
-
 function RFP.SET_PRESETS(idBinding, strCommand, tParams)
-    print("-- SET PRESETS --")
+    PRESETS = {}
+
+    for presetName, presetFieldsEncoded in string.gmatch(tParams.XML, '<preset name="([^"]+)" preset_fields="([^"]+)"') do
+        local presetFieldsDecoded = XMLDecode(presetFieldsEncoded)
+
+        PRESETS[presetName] = {}
+
+        for fieldId, fieldValue in string.gmatch(presetFieldsDecoded, '<field id="([^"]+)" value="([^"]+)"/>') do
+            PRESETS[presetName][fieldId] = fieldValue
+        end
+    end
 end
 
-function RFP.SET_EVENTS(idBinding, strCommand, tParams)
-    print("-- SET EVENTS --")
+function RFP.SET_EVENT(idBinding, strCommand, tParams)
+    tParams.NAME = tParams.PRESET
+    RFP:SET_PRESET(strCommand, tParams)
+end
+
+function RFP.SET_PRESET(idBinding, strCommand, tParams)
+    local presetName = tParams.NAME
+
+    if PRESETS[presetName] == nil then
+        print("-- WARNING: No preset with the name " .. presetName .. " --")
+        return
+    end
+
+    if HOLD_TIMER_EXPIRED == false then
+        print("-- WARNING: Ignoring scheduled preset for permanent hold --")
+        return
+    end
+
+    local preset = PRESETS[presetName]
+
+    if preset.hvac_mode ~= nil then
+        tParams["MODE"] = preset.hvac_mode
+
+        RFP:SET_MODE_HVAC(strCommand, tParams)
+
+        Sleep(0.1)
+    end
+
+    local hasHeatSetpoint = (preset.heat_setpoint_c ~= nil or preset.heat_setpoint_f ~= nil)
+    local hasCoolSetpoint = (preset.cool_setpoint_c ~= nil or preset.cool_setpoint_f)
+    local hasSingleSetpoint = (preset.single_setpoint_c ~= nil or preset.single_setpoint_f)
+
+    if hasHeatSetpoint then
+        tParams["CELSIUS"] = preset.heat_setpoint_c
+        tParams["FAHRENHEIT"] = preset.heat_setpoint_f
+
+        RFP:SET_SETPOINT_HEAT(strCommand, tParams)
+
+        Sleep(0.1)
+    end
+
+    if hasCoolSetpoint then
+        tParams["CELSIUS"] = preset.cool_setpoint_c
+        tParams["FAHRENHEIT"] = preset.cool_setpoint_f
+
+        RFP:SET_SETPOINT_COOL(strCommand, tParams)
+
+        Sleep(0.1)
+    end
+
+    if hasSingleSetpoint then
+        tParams["CELSIUS"] = preset.single_setpoint_c
+        tParams["FAHRENHEIT"] = preset.single_setpoint_f
+
+        RFP:SET_SETPOINT_SINGLE(strCommand, tParams)
+    end
+
+    if preset.fan_mode ~= nil then
+        tParams["MODE"] = preset.fan_mode
+
+        RFP:SET_MODE_FAN(strCommand, tParams)
+    end
 end
 
 function SetupPresetFields()
@@ -666,8 +745,6 @@ function Parse(data)
     end
 
     if state ~= nil and LAST_STATE ~= state then
-        print("mode CHANGE: FROM: " .. LAST_STATE .. " TO: " .. state)
-
         CURRENT_STATE = state
         LAST_STATE = state
 
@@ -689,8 +766,6 @@ function Parse(data)
             local tCapabilities = {
                 HAS_SINGLE_SETPOINT = IS_HA_AUTO
             }
-
-            print("capability CHANGE: HAS_SINGLE_SETPOINT: " .. tostring(tCapabilities.HAS_SINGLE_SETPOINT))
 
             C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tCapabilities, "NOTIFY")
         end
@@ -893,8 +968,6 @@ function Parse(data)
 
     selectedAttribute = attributes["hvac_action"]
     if selectedAttribute ~= nil then
-        print("hvac_action CHANGE: " .. selectedAttribute)
-
         local c4ReportableState = "Off"
 
         if (string.find(selectedAttribute, "cool")) then
@@ -1153,4 +1226,22 @@ function OnRefreshTimerExpired()
         }
         C4:SendToProxy(999, "HA_GET_STATE", tParams)
     end
+end
+
+function XMLDecode(s)
+    if (type(s) ~= 'string') then
+        return (s)
+    end
+
+    s = string.gsub(s, '%<%!%[CDATA%[(.-)%]%]%>', function(a) return (a) end)
+
+    s = string.gsub(s, '&quot;', '"')
+    s = string.gsub(s, '&lt;', '<')
+    s = string.gsub(s, '&gt;', '>')
+    s = string.gsub(s, '&apos;', '\'')
+    s = string.gsub(s, '&#x(.-);', function(a) return string.char(tonumber(a, 16) % 256) end)
+    s = string.gsub(s, '&#(.-);', function(a) return string.char(tonumber(a) % 256) end)
+    s = string.gsub(s, '&amp;', '&')
+
+    return s
 end
