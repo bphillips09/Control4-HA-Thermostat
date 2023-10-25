@@ -5,8 +5,8 @@
 	<name>HA Thermostat</name>
 	<model>HA Thermostat</model>
 	<created>09/10/2023 12:00</created>
-	<modified>10/19/2023 12:00</modified>
-	<version>106</version>
+	<modified>10/22/2023 12:00</modified>
+	<version>107</version>
 	<control>lua_gen</control>
 	<controlmethod>IP</controlmethod>
 	<driver>DriverWorks</driver>
@@ -31,7 +31,7 @@
 				<readonly>false</readonly>
 			</property>
 			<property>
-				<name>Fallback Precision</name>
+				<name>Setpoint Precision</name>
 				<type>LIST</type>
 				<items>
 					<item>1.0</item>
@@ -143,22 +143,19 @@
 		<can_do_auto>true</can_do_auto>
 		<can_auto>true</can_auto>
 		<can_calibrate>false</can_calibrate>
+		
 		<setpoint_heat_min_f>38</setpoint_heat_min_f>
 		<setpoint_heat_min_c>4</setpoint_heat_min_c>
 		<setpoint_heat_max_f>110</setpoint_heat_max_f>
-
 		<setpoint_heat_min>4</setpoint_heat_min>
 		<setpoint_heat_max>110</setpoint_heat_max>
-
 		<setpoint_heat_max_c>31</setpoint_heat_max_c>
 		<setpoint_cool_min_f>42</setpoint_cool_min_f>
 		<setpoint_cool_min_c>6</setpoint_cool_min_c>
 		<setpoint_cool_max_f>110</setpoint_cool_max_f>
 		<setpoint_cool_max_c>32</setpoint_cool_max_c>
-
 		<setpoint_cool_min>4</setpoint_cool_min>
 		<setpoint_cool_max>110</setpoint_cool_max>
-
 		<setpoint_single_min_f>38</setpoint_single_min_f>
 		<setpoint_single_min_c>4</setpoint_single_min_c>
 		<setpoint_single_max_f>110</setpoint_single_max_f>
@@ -167,7 +164,9 @@
 		<fan_states>Off,On</fan_states>
 		<hvac_states>Off,Heat,Cool,Dry,Fan</hvac_states>
 		<has_connection_status>true</has_connection_status>
-		<scheduling>false</scheduling>
+
+		<can_preset_schedule>false</can_preset_schedule>
+		<can_preset>false</can_preset>
 	</capabilities>
 	<events/>
 	<connections>
