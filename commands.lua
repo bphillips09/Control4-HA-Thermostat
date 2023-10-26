@@ -13,15 +13,46 @@ HOLD_MODES_ENABLED = false
 MODE_STATES_ENABLED = false
 HOLD_TIMER = nil
 HOLD_TIMER_EXPIRED = true
+HOLD_MODE = ""
 HAS_HA_AUTO = false
 IS_HA_AUTO = false
 LAST_HA_AUTO = false
 SENT_INITIAL_PRESETS = false
 PRESETS = {}
+SCHEDULING = false
 
 SETPOINT_RESOLUTION = 1.0
 LAST_MIN = 0
 LAST_MAX = 100
+
+function SendToProxy(idBinding, strCommand, tParams, strmessage, allowEmptyValues)
+    C4:SendToProxy(idBinding, strCommand, tParams)
+
+    --if idBinding == 5001 then
+    --    print("STP: " .. strCommand)
+--
+    --    if tParams ~= nil then
+    --        print (Dump(tParams))
+    --    end
+    --end
+end
+--
+--function Dump(o)
+--    if type(o) == 'table' then
+--        local s = '{ '
+--        for k, v in pairs(o) do
+--            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+--            s = s .. '[' .. k .. '] = ' .. Dump(v) .. ','
+--        end
+--        return s .. '} '
+--    else
+--        return tostring(o)
+--    end
+--end
+
+function DRV.OnDriverInit(init)
+    C4:AddVariable("FORCED_STATE", "", "STRING")
+end
 
 function DRV.OnDriverLateInit(init)
     SELECTED_SCALE = C4:PersistGetValue("CurrentTemperatureScale") or "FAHRENHEIT"
@@ -47,38 +78,63 @@ end
 function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
     if (bIsBound) then
         if idBinding == 1 then
-            C4:SendToProxy(idBinding, "QUERY_SETTINGS", {})
-            C4:SendToProxy(idBinding, "GET_SENSOR_VALUE", {})
+            SendToProxy(idBinding, "QUERY_SETTINGS", {})
+            SendToProxy(idBinding, "GET_SENSOR_VALUE", {})
         end
     end
 end
 
+function DRV.OnDriverDestroyed()
+    C4:DeleteVariable("FORCED_STATE")
+end
+
+function DRV.OnVariableChanged(variableName, value)
+    if variableName == "FORCED_STATE" then
+        local tParams = {
+            STATE = tostring(value)
+        }
+
+        SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
+    end
+end
+
 function OPC.Scheduling_Enabled(strProperty)
-    local schedulingEnabled = false
+    SCHEDULING = false
 
     if strProperty == "True" then
-        schedulingEnabled = true
+        SCHEDULING = true
     else
-        schedulingEnabled = false
+        SCHEDULING = false
     end
 
-    C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', { CAN_PRESET_SCHEDULE = schedulingEnabled }, "NOTIFY")
+    OPC.Hold_Modes_Enabled(Properties["Hold Modes Enabled"] or false)
+
+    SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', { CAN_PRESET_SCHEDULE = SCHEDULING }, "NOTIFY")
 end
 
 function OPC.Hold_Modes_Enabled(strProperty)
-    if (Properties["Hold Modes Enabled"] == "True") then
+    local modes = "Off,Permanent,2 Hours,4 Hours"
+
+    if (strProperty == "True") then
         C4:SetPropertyAttribs("Clear Hold Entity ID", 0)
         HOLD_MODES_ENABLED = true
-        local modes = "Off,Permanent,2 Hours,4 Hours"
         local tParams = {
             MODES = modes
         }
-        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', tParams, "NOTIFY")
     else
+        if SCHEDULING == true then
+            modes = "Off,Permanent"
+        else
+            modes = "Permanent"
+        end
+
+        HOLD_MODE = "Permanent"
+
         C4:SetPropertyAttribs("Clear Hold Entity ID", 1)
         HOLD_MODES_ENABLED = false
-        C4:SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', { MODES = "Permanent" }, "NOTIFY")
-        C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', { MODE = "Permanent" }, "NOTIFY")
+        SendToProxy(5001, 'ALLOWED_HOLD_MODES_CHANGED', { MODES = modes }, "NOTIFY")
+        SendToProxy(5001, 'HOLD_MODE_CHANGED', { MODE = "Permanent" }, "NOTIFY")
     end
 end
 
@@ -94,7 +150,7 @@ function OPC.Mode_States_Enabled(strProperty)
         tParams = {
             entity = Properties["Mode Selection Entity ID"]
         }
-        C4:SendToProxy(999, "HA_GET_STATE", tParams)
+        SendToProxy(999, "HA_GET_STATE", tParams)
         UpdateClimateModes()
         SetupComfortExtras()
     else
@@ -138,7 +194,7 @@ function OPC.Display_Precision(strProperty)
         OUTDOOR_TEMPERATURE_RESOLUTION_F = precisionStrF,
     }
 
-    C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
 end
 
 function OPC.Setpoint_Precision(strProperty)
@@ -151,7 +207,7 @@ function OPC.Setpoint_Precision(strProperty)
         COOL_SETPOINT_RESOLUTION_C = SETPOINT_RESOLUTION
     }
 
-    C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
 end
 
 function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
@@ -161,7 +217,7 @@ function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
         HAS_REMOTE_SENSOR = true
     end
 
-    C4:SendToProxy(5001, "REMOTE_SENSOR_CHANGED", tParams, "NOTIFY")
+    SendToProxy(5001, "REMOTE_SENSOR_CHANGED", tParams, "NOTIFY")
     C4:PersistSetValue("RemoteSensor", tParams.IN_USE, false)
 
     EC.REFRESH()
@@ -182,7 +238,7 @@ function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
             CONNECTED = "true"
         }
 
-        C4:SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
+        SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
 
         if (tParams.CELSIUS ~= nil and SELECTED_SCALE == "CELSIUS") then
             SensorValue = tonumber(tParams.CELSIUS)
@@ -191,8 +247,8 @@ function RFP.VALUE_INITIALIZED(idBinding, strCommand, tParams)
         end
 
         local TimeStamp = (tParams.TIMESTAMP ~= nil) and tParams.TIMESTAMP or tostring(os.time())
-        C4:SendToProxy(5001, "VALUE_INITIALIZED", { STATUS = "active", TimeStamp }, "NOTIFY")
-        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = ScaleStr }, "NOTIFY")
+        SendToProxy(5001, "VALUE_INITIALIZED", { STATUS = "active", TimeStamp }, "NOTIFY")
+        SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = ScaleStr }, "NOTIFY")
     end
 end
 
@@ -209,7 +265,7 @@ function RFP.VALUE_CHANGED(idBinding, strCommand, tParams)
         else
             SensorValue = tonumber(tParams.FAHRENHEIT)
         end
-        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = SELECTED_SCALE },
+        SendToProxy(5001, "TEMPERATURE_CHANGED", { TEMPERATURE = tostring(SensorValue), SCALE = SELECTED_SCALE },
             "NOTIFY")
     end
 end
@@ -223,7 +279,7 @@ function RFP.VALUE_UNAVAILABLE(idBinding, strCommand, tParams)
             CONNECTED = "false"
         }
 
-        C4:SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
+        SendToProxy(5001, "CONNECTION", connectParams, "NOTIFY")
     end
 end
 
@@ -263,7 +319,7 @@ function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
         JSON = JSON:encode(hvacModeServiceCall)
     }
 
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SCALE(bindingID, action, tParams)
@@ -290,7 +346,7 @@ function RFP.SET_MODE_FAN(idBinding, strCommand, tParams)
         JSON = JSON:encode(fanModeServiceCall)
     }
 
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
@@ -370,13 +426,19 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
         end
     end
     if (HOLD_TIMER_EXPIRED == true) then
-        RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
+        local holdParams = {
+            MODE = "Permanent"
+        }
+        if SCHEDULING == true then
+            holdParams.MODE = "Off"
+        end
+        RFP:SET_MODE_HOLD("SET_MODE_HOLD", holdParams)
     end
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
     }
 
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SETPOINT_SINGLE(idBinding, strCommand, tParams)
@@ -425,14 +487,20 @@ function RFP.SET_SETPOINT_SINGLE(idBinding, strCommand, tParams)
     end
 
     if (HOLD_TIMER_EXPIRED == true) then
-        RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
+        local holdParams = {
+            MODE = "Permanent"
+        }
+        if SCHEDULING == true then
+            holdParams.MODE = "Off"
+        end
+        RFP:SET_MODE_HOLD("SET_MODE_HOLD", holdParams)
     end
 
     tParams = {
         JSON = JSON:encode(temperatureServiceCall)
     }
 
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
@@ -511,7 +579,13 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
             return
         end
         if (HOLD_TIMER_EXPIRED == true) then
-            RFP:SET_MODE_HOLD("SET_MODE_HOLD", { MODE = "Permanent" })
+            local holdParams = {
+                MODE = "Permanent"
+            }
+            if SCHEDULING == true then
+                holdParams.MODE = "Off"
+            end
+            RFP:SET_MODE_HOLD("SET_MODE_HOLD", holdParams)
         end
     end
 
@@ -519,7 +593,7 @@ function RFP.SET_SETPOINT_COOL(idBinding, strCommand, tParams)
         JSON = JSON:encode(temperatureServiceCall)
     }
 
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function RFP.SET_PRESETS(idBinding, strCommand, tParams)
@@ -549,8 +623,8 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
         return
     end
 
-    if HOLD_TIMER_EXPIRED == false then
-        print("-- WARNING: Ignoring scheduled preset for permanent hold --")
+    if HOLD_MODE ~= "Off" or HOLD_TIMER_EXPIRED == false then
+        print("-- WARNING: Ignoring scheduled preset for hold --")
         return
     end
 
@@ -605,8 +679,8 @@ function SetupPresetFields()
     xml = xml .. '<field id="hvac_mode" type="list" label="HVAC Mode"><list>'
 
     if next(HVAC_MODES) ~= nil then
-        for k, v in pairs(HVAC_MODES) do
-            xml = xml .. string.format('<item text="%s" value="%s" />', v, v)
+        for _, v in pairs(HVAC_MODES) do
+            xml = xml .. string.format('<item text="%s" value="%s" />', FirstToUpper(v), v)
         end
     end
 
@@ -660,7 +734,7 @@ function SetupPresetFields()
         XML = xml
     }
 
-    C4:SendToProxy(5001, "PRESET_FIELDS_CHANGED", tParams, "NOTIFY")
+    SendToProxy(5001, "PRESET_FIELDS_CHANGED", tParams, "NOTIFY")
 end
 
 function RFP.RECEIEVE_STATE(idBinding, strCommand, tParams)
@@ -729,7 +803,7 @@ function Parse(data)
             CONNECTED = "false"
         }
 
-        C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
+        SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
         return
     end
 
@@ -741,10 +815,10 @@ function Parse(data)
             CONNECTED = "true"
         }
 
-        C4:SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
+        SendToProxy(5001, "CONNECTION", tParams, "NOTIFY")
     end
 
-    if state ~= nil and LAST_STATE ~= state then
+    if state ~= nil then
         CURRENT_STATE = state
         LAST_STATE = state
 
@@ -758,7 +832,7 @@ function Parse(data)
             MODE = state
         }
 
-        C4:SendToProxy(5001, "HVAC_MODE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "HVAC_MODE_CHANGED", tParams, "NOTIFY")
 
         if LAST_HA_AUTO ~= IS_HA_AUTO then
             LAST_HA_AUTO = IS_HA_AUTO
@@ -767,7 +841,7 @@ function Parse(data)
                 HAS_SINGLE_SETPOINT = IS_HA_AUTO
             }
 
-            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tCapabilities, "NOTIFY")
+            SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tCapabilities, "NOTIFY")
         end
     end
 
@@ -788,7 +862,7 @@ function Parse(data)
             tParams["SINGLE_SETPOINT_MIN_C"] = minTemp
         end
 
-        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["max_temp"]
@@ -808,7 +882,7 @@ function Parse(data)
             tParams["SINGLE_SETPOINT_MAX_C"] = maxTemp
         end
 
-        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
     end
 
     if attributes["min_temp"] == nil or attributes["max_temp"] == nil then
@@ -835,7 +909,7 @@ function Parse(data)
             SINGLE_SETPOINT_MAX_C = maxC
         }
 
-        C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["hvac_modes"]
@@ -852,7 +926,7 @@ function Parse(data)
             MODES = modes
         }
 
-        C4:SendToProxy(5001, 'ALLOWED_HVAC_MODES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'ALLOWED_HVAC_MODES_CHANGED', tParams, "NOTIFY")
 
         SetupPresetFields()
     end
@@ -867,7 +941,7 @@ function Parse(data)
             MODES = modes
         }
 
-        C4:SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
     elseif selectedAttribute == nil then
         FAN_MODES = {}
 
@@ -875,7 +949,7 @@ function Parse(data)
             MODES = {}
         }
 
-        C4:SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
+        SendToProxy(5001, 'ALLOWED_FAN_MODES_CHANGED', tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["preset_modes"]
@@ -892,7 +966,7 @@ function Parse(data)
             SCALE = SELECTED_SCALE
         }
 
-        C4:SendToProxy(5001, "TEMPERATURE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "TEMPERATURE_CHANGED", tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["current_humidity"]
@@ -901,7 +975,7 @@ function Parse(data)
             HUMIDITY = tonumber(attributes["current_humidity"])
         }
 
-        C4:SendToProxy(5001, "HUMIDITY_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "HUMIDITY_CHANGED", tParams, "NOTIFY")
 
         if HAS_HUMIDITY == false then
             HAS_HUMIDITY = true
@@ -910,7 +984,7 @@ function Parse(data)
                 HAS_HUMIDITY = HAS_HUMIDITY
             }
 
-            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+            SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
         end
     else
         if HAS_HUMIDITY == true then
@@ -920,7 +994,7 @@ function Parse(data)
                 HAS_HUMIDITY = HAS_HUMIDITY
             }
 
-            C4:SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+            SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
         end
     end
 
@@ -932,7 +1006,7 @@ function Parse(data)
             MODE = value
         }
 
-        C4:SendToProxy(5001, "FAN_MODE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "FAN_MODE_CHANGED", tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["fan_state"]
@@ -948,7 +1022,7 @@ function Parse(data)
             STATE = fanStateString
         }
 
-        C4:SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
     else
         local hvacActionValue = attributes["hvac_action"] or "off"
         local fanModeValue = attributes["fan_mode"] or "off"
@@ -963,7 +1037,7 @@ function Parse(data)
             STATE = fanStateString
         }
 
-        C4:SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "FAN_STATE_CHANGED", tParams, "NOTIFY")
     end
 
     selectedAttribute = attributes["hvac_action"]
@@ -984,11 +1058,12 @@ function Parse(data)
             STATE = c4ReportableState
         }
 
-        C4:SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
     end
 
-    if attributes["temperature"] ~= nil and attributes["temperature"] ~= "null" then
-        local tempValue = tonumber(attributes["temperature"])
+    selectedAttribute = attributes["temperature"]
+    if selectedAttribute ~= nil and selectedAttribute ~= "null" then
+        local tempValue = tonumber(selectedAttribute)
 
         if state == nil then
             return
@@ -1000,7 +1075,7 @@ function Parse(data)
                 SCALE = SELECTED_SCALE
             }
 
-            C4:SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
+            SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
 
             LOW_TEMP = tempValue
         elseif state == "cool" and not IS_HA_AUTO then
@@ -1009,7 +1084,7 @@ function Parse(data)
                 SCALE = SELECTED_SCALE
             }
 
-            C4:SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
+            SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
 
             HIGH_TEMP = tempValue
         elseif state == "auto" or IS_HA_AUTO then
@@ -1018,17 +1093,17 @@ function Parse(data)
                 SCALE = SELECTED_SCALE
             }
 
-            C4:SendToProxy(5001, "SINGLE_SETPOINT_CHANGED", tParams, "NOTIFY")
+            SendToProxy(5001, "SINGLE_SETPOINT_CHANGED", tParams, "NOTIFY")
 
             LOW_TEMP = tempValue
             HIGH_TEMP = tempValue
         end
-    elseif attributes["temperature"] == nil or attributes["temperature"] == "null" then
+    elseif (selectedAttribute == nil or selectedAttribute == "null") and LAST_STATE ~= "heat_cool" then
         local tParams = {
             STATE = "Off"
         }
 
-        C4:SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
     end
 
     if attributes["target_temp_high"] ~= nil and attributes["target_temp_high"] ~= "null" then
@@ -1040,7 +1115,7 @@ function Parse(data)
             SCALE = SELECTED_SCALE
         }
 
-        C4:SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
 
         HIGH_TEMP = tempValue
         LOW_TEMP = otherValue
@@ -1055,7 +1130,7 @@ function Parse(data)
             SCALE = SELECTED_SCALE
         }
 
-        C4:SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
+        SendToProxy(5001, "HEAT_SETPOINT_CHANGED", tParams, "NOTIFY")
 
         LOW_TEMP = tempValue
         HIGH_TEMP = otherValue
@@ -1074,7 +1149,7 @@ function SetCurrentTemperatureScale(scaleStr)
 end
 
 function NotifyCurrentTemperatureScale()
-    C4:SendToProxy(5001, "SCALE_CHANGED", { SCALE = SELECTED_SCALE }, "NOTIFY")
+    SendToProxy(5001, "SCALE_CHANGED", { SCALE = SELECTED_SCALE }, "NOTIFY")
 end
 
 function SetupComfortExtras()
@@ -1106,7 +1181,7 @@ function SetupComfortExtras()
         [[</extra></extras_setup>]],
     }
     xml = table.concat(xml)
-    C4:SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
+    SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
 end
 
 function HoldTimerExpired(timer, skips)
@@ -1150,13 +1225,19 @@ function UpdateExtras(xml)
     }
     xmlPackage = table.concat(xmlPackage)
 
-    C4:SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = xmlPackage }, "NOTIFY")
+    SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = xmlPackage }, "NOTIFY")
 end
 
-function GetNumbersFromText(txt)
+function GetNumbersFromString(txt)
     local str = ""
-    string.gsub(txt, "%d+", function(e) str = str .. e end)
-    return str;
+    for num in string.gmatch(txt, "%d+") do
+        str = str .. num
+    end
+    return str
+end
+
+function FirstToUpper(str)
+    return str:gsub("^%l", string.upper)
 end
 
 function ClearThermostatHold()
@@ -1173,10 +1254,13 @@ function ClearThermostatHold()
     local tParams = {
         JSON = JSON:encode(buttonPressServiceCall)
     }
-    C4:SendToProxy(999, "HA_CALL_SERVICE", tParams)
+
+    SendToProxy(999, "HA_CALL_SERVICE", tParams)
 end
 
 function SetHoldMode(tParams)
+    HOLD_MODE = tostring(tParams.MODE)
+
     if (tostring(tParams.MODE) == "Permanent") then
         if HOLD_TIMER ~= nil then
             HOLD_TIMER.Cancel()
@@ -1189,7 +1273,7 @@ function SetHoldMode(tParams)
         end
         ClearThermostatHold()
     else
-        local hourValue = tonumber(GetNumbersFromText(tParams.MODE))
+        local hourValue = tonumber(GetNumbersFromString(tParams.MODE))
         if (HOLD_TIMER_EXPIRED == false) then
             HOLD_TIMER.Cancel()
             HOLD_TIMER_EXPIRED = true
@@ -1198,7 +1282,7 @@ function SetHoldMode(tParams)
             false)
         HOLD_TIMER_EXPIRED = false
     end
-    C4:SendToProxy(5001, 'HOLD_MODE_CHANGED', tParams, "NOTIFY")
+    SendToProxy(5001, 'HOLD_MODE_CHANGED', tParams, "NOTIFY")
 end
 
 function SelectClimateMode(tParams)
@@ -1215,7 +1299,7 @@ function SelectClimateMode(tParams)
     local requestParams = {
         JSON = JSON:encode(selectServiceCall)
     }
-    C4:SendToProxy(999, "HA_CALL_SERVICE", requestParams)
+    SendToProxy(999, "HA_CALL_SERVICE", requestParams)
 end
 
 function OnRefreshTimerExpired()
@@ -1224,7 +1308,7 @@ function OnRefreshTimerExpired()
         tParams = {
             entity = Properties["Mode Selection Entity ID"]
         }
-        C4:SendToProxy(999, "HA_GET_STATE", tParams)
+        SendToProxy(999, "HA_GET_STATE", tParams)
     end
 end
 
