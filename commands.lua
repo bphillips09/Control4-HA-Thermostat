@@ -28,27 +28,27 @@ LAST_MAX = 100
 function SendToProxy(idBinding, strCommand, tParams, strmessage, allowEmptyValues)
     C4:SendToProxy(idBinding, strCommand, tParams)
 
-    --if idBinding == 5001 then
-    --    print("STP: " .. strCommand)
---
-    --    if tParams ~= nil then
-    --        print (Dump(tParams))
-    --    end
-    --end
+    if idBinding == 5001 then
+        print("STP: " .. strCommand)
+
+        if tParams ~= nil then
+            print (Dump(tParams))
+        end
+    end
 end
 --
---function Dump(o)
---    if type(o) == 'table' then
---        local s = '{ '
---        for k, v in pairs(o) do
---            if type(k) ~= 'number' then k = '"' .. k .. '"' end
---            s = s .. '[' .. k .. '] = ' .. Dump(v) .. ','
---        end
---        return s .. '} '
---    else
---        return tostring(o)
---    end
---end
+function Dump(o)
+    if type(o) == 'table' then
+        local s = '{ '
+        for k, v in pairs(o) do
+            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+            s = s .. '[' .. k .. '] = ' .. Dump(v) .. ','
+        end
+        return s .. '} '
+    else
+        return tostring(o)
+    end
+end
 
 function DRV.OnDriverInit(init)
     C4:AddVariable("FORCED_STATE", "", "STRING")
@@ -630,17 +630,20 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
 
     local preset = PRESETS[presetName]
 
+    print("----PRESET TABLE DUMP----")
+    print(Dump(preset))
+
     if preset.hvac_mode ~= nil then
         tParams["MODE"] = preset.hvac_mode
 
         RFP:SET_MODE_HVAC(strCommand, tParams)
 
-        Sleep(0.1)
+        Sleep(0.7)
     end
 
     local hasHeatSetpoint = (preset.heat_setpoint_c ~= nil or preset.heat_setpoint_f ~= nil)
-    local hasCoolSetpoint = (preset.cool_setpoint_c ~= nil or preset.cool_setpoint_f)
-    local hasSingleSetpoint = (preset.single_setpoint_c ~= nil or preset.single_setpoint_f)
+    local hasCoolSetpoint = (preset.cool_setpoint_c ~= nil or preset.cool_setpoint_f ~= nil)
+    local hasSingleSetpoint = (preset.single_setpoint_c ~= nil or preset.single_setpoint_f ~= nil)
 
     if hasHeatSetpoint then
         tParams["CELSIUS"] = preset.heat_setpoint_c
@@ -648,7 +651,7 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
 
         RFP:SET_SETPOINT_HEAT(strCommand, tParams)
 
-        Sleep(0.1)
+        Sleep(0.7)
     end
 
     if hasCoolSetpoint then
@@ -657,7 +660,7 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
 
         RFP:SET_SETPOINT_COOL(strCommand, tParams)
 
-        Sleep(0.1)
+        Sleep(0.7)
     end
 
     if hasSingleSetpoint then
@@ -665,6 +668,8 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
         tParams["FAHRENHEIT"] = preset.single_setpoint_f
 
         RFP:SET_SETPOINT_SINGLE(strCommand, tParams)
+
+        Sleep(0.7)
     end
 
     if preset.fan_mode ~= nil then
