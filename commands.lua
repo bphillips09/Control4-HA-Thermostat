@@ -21,6 +21,11 @@ SENT_INITIAL_PRESETS = false
 PRESETS = {}
 SCHEDULING = false
 
+LAST_CURRENT_CLIMATE_MODE = ""
+LAST_HA_PRESET = ""
+HAS_HA_PRESETS = false
+HA_PRESETS = {}
+
 SETPOINT_RESOLUTION = 1.0
 LAST_MIN = 0
 LAST_MAX = 100
@@ -28,15 +33,15 @@ LAST_MAX = 100
 function SendToProxy(idBinding, strCommand, tParams, strmessage, allowEmptyValues)
     C4:SendToProxy(idBinding, strCommand, tParams)
 
-    if idBinding == 5001 then
-        print("STP: " .. strCommand)
-
-        if tParams ~= nil then
-            print (Dump(tParams))
-        end
-    end
-end
+    --if idBinding == 5001 then
+    --    print("STP: " .. strCommand)
 --
+    --    if tParams ~= nil then
+    --        print (Dump(tParams))
+    --    end
+    --end
+end
+
 function Dump(o)
     if type(o) == 'table' then
         local s = '{ '
@@ -289,6 +294,10 @@ end
 
 function RFP.EXTRAS_CHANGE_COMFORT(idBinding, strCommand, tParams)
     SelectClimateMode(tParams)
+end
+
+function RFP.SELECT_HA_PRESET_MODE(idBinding, strCommand, tParams)
+    SelectPresetMode(tParams)
 end
 
 function RFP.SET_MODE_HVAC(idBinding, strCommand, tParams)
@@ -791,7 +800,8 @@ function Parse(data)
         C4:UpdatePropertyList("Home Mode Selection", optionsStringCSV, Properties["Home Mode Selection"])
         C4:UpdatePropertyList("Away Mode Selection", optionsStringCSV, Properties["Away Mode Selection"])
         C4:UpdatePropertyList("Sleep Mode Selection", optionsStringCSV, Properties["Sleep Mode Selection"])
-        UpdateCurrentClimateMode(currentMode)
+        LAST_CURRENT_CLIMATE_MODE = currentMode
+        SendExtrasStates()
     end
 
     if data["entity_id"] ~= EntityID then
@@ -888,6 +898,27 @@ function Parse(data)
         end
 
         SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    end
+
+    selectedAttribute = attributes["preset_mode"]
+    if selectedAttribute ~= nil and LAST_HA_PRESET ~= selectedAttribute then
+        LAST_HA_PRESET = selectedAttribute
+
+        SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = GetExtrasStateXML() }, 'NOTIFY')
+    elseif selectedAttribute == nil then
+        LAST_HA_PRESET = "Select Preset"
+        SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = GetExtrasStateXML() }, 'NOTIFY')
+    end
+
+    selectedAttribute = attributes["preset_modes"]
+    if selectedAttribute ~= nil and not TablesMatch(HA_PRESETS, selectedAttribute) then
+        HA_PRESETS = selectedAttribute
+        HAS_HA_PRESETS = true
+
+        SendToProxy(5001, 'EXTRAS_SETUP_CHANGED', { XML = GetExtrasXML() }, 'NOTIFY')
+    elseif selectedAttribute == nil then
+        HA_PRESETS = {}
+        HAS_HA_PRESETS = false
     end
 
     if attributes["min_temp"] == nil or attributes["max_temp"] == nil then
@@ -1158,35 +1189,59 @@ function NotifyCurrentTemperatureScale()
 end
 
 function SetupComfortExtras()
-    local defaultExtras = nil
-    if (not MODE_STATES_ENABLED) then
-        defaultExtras = [[
-		
-	    ]]
-    else
-        defaultExtras = [[
-		    <section label="Comfort Setting Select">
-			    <object type="list" id="comfortSwitch" label="Comfort Setting" command="EXTRAS_CHANGE_COMFORT">
-				    <list maxselections="1" minselections="1">
-	    ]]
+    SendToProxy(5001, 'EXTRAS_SETUP_CHANGED', { XML = GetExtrasXML() }, 'NOTIFY')
+end
 
-        for k, v in pairs(CLIMATE_MODES or {}) do
-            defaultExtras = defaultExtras .. '<item text="' .. v.name .. '" value="' .. v.ref .. '"/>'
+function SendExtrasStates()
+    SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = GetExtrasStateXML() }, 'NOTIFY')
+end
+
+function GetExtrasStateXML()
+    return '<extras_state>' ..
+        '<extra><object id="comfortSwitch" value="' .. LAST_CURRENT_CLIMATE_MODE .. '"></object>' ..
+        '<object id="presetMode" value="' .. LAST_HA_PRESET .. '"></object></extra>' ..
+        '</extras_state>'
+end
+
+function GetExtrasXML()
+    local extras = ""
+    local items = ""
+
+    extras = '<extras_setup><extra>'
+
+    if MODE_STATES_ENABLED then
+        extras = extras .. [[
+        <section label="Comfort Setting Select">
+            <object type="list" id="comfortSwitch" label="Comfort Setting" command="EXTRAS_CHANGE_COMFORT">
+                <list maxselections="1" minselections="1">
+        ]]
+
+        for _, mode in pairs(CLIMATE_MODES) do
+            items = items .. '<item text="' .. mode.name .. '" value="' .. mode.ref .. '"/>'
         end
 
-        defaultExtras = defaultExtras .. [[
-				    </list>
-			    </object>
-		    </section>
-	    ]]
+        extras = extras .. items .. '</list></object></section>'
     end
-    local xml = {
-        [[<extras_setup><extra>]],
-        defaultExtras,
-        [[</extra></extras_setup>]],
-    }
-    xml = table.concat(xml)
-    SendToProxy(5001, "EXTRAS_SETUP_CHANGED", { XML = xml })
+
+    if HAS_HA_PRESETS then
+        items = ""
+
+        extras = extras .. [[
+        <section label="Preset Modes">
+            <object type="list" id="presetMode" label="Preset Mode" command="SELECT_HA_PRESET_MODE">
+                <list maxselections="1" minselections="1">
+        ]]
+
+        for _, preset in pairs(HA_PRESETS) do
+            items = items .. '<item text="' .. preset .. '" value="' .. preset .. '"/>'
+        end
+
+        extras = extras .. items .. '</list></object></section>'
+    end
+
+    extras = extras .. '</extra></extras_setup>'
+
+    return extras
 end
 
 function HoldTimerExpired(timer, skips)
@@ -1215,22 +1270,6 @@ function UpdateClimateModes()
     else
         CLIMATE_MODES = {}
     end
-end
-
-function UpdateCurrentClimateMode(ref)
-    local xml = '<object id="comfortSwitch" value="' .. ref .. '"/>'
-    UpdateExtras(xml)
-end
-
-function UpdateExtras(xml)
-    local xmlPackage = {
-        [[<extras_state><extra>]],
-        (xml or ''),
-        [[</extra></extras_state>]],
-    }
-    xmlPackage = table.concat(xmlPackage)
-
-    SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = xmlPackage }, "NOTIFY")
 end
 
 function GetNumbersFromString(txt)
@@ -1304,6 +1343,25 @@ function SelectClimateMode(tParams)
     local requestParams = {
         JSON = JSON:encode(selectServiceCall)
     }
+    SendToProxy(999, "HA_CALL_SERVICE", requestParams)
+end
+
+function SelectPresetMode(tParams)
+    local presetServiceCall = {
+        domain = "climate",
+        service = "set_preset_mode",
+        service_data = {
+            preset_mode = tParams.value,
+        },
+        target = {
+            entity_id = EntityID
+        }
+    }
+
+    local requestParams = {
+        JSON = JSON:encode(presetServiceCall)
+    }
+
     SendToProxy(999, "HA_CALL_SERVICE", requestParams)
 end
 
