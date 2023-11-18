@@ -632,7 +632,7 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
         return
     end
 
-    if HOLD_MODE ~= "Off" or HOLD_TIMER_EXPIRED == false then
+    if (SCHEDULING == true and HOLD_MODE ~= "Off") or HOLD_TIMER_EXPIRED == false then
         print("-- WARNING: Ignoring scheduled preset for hold --")
         return
     end
@@ -679,6 +679,12 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
         RFP:SET_SETPOINT_SINGLE(strCommand, tParams)
 
         Sleep(0.7)
+    end
+
+    if preset.preset_mode ~= nil then
+        tParams["value"] = preset.preset_mode
+
+        SelectPresetMode(tParams)
     end
 
     if preset.fan_mode ~= nil then
@@ -734,6 +740,17 @@ function SetupPresetFields()
     if next(FAN_MODES) ~= nil then
         xml = xml .. '<field id="fan_mode" type="list" label="Fan Mode"><list>'
         for k, v in pairs(FAN_MODES) do
+            xml = xml .. string.format('<item text="%s" value="%s" />', v, v)
+        end
+        xml = xml .. [[
+              </list>
+          </field>
+        ]]
+    end
+
+    if HAS_HA_PRESETS then
+        xml = xml .. '<field id="preset_mode" type="list" label="Preset Mode"><list>'
+        for k, v in pairs(HA_PRESETS) do
             xml = xml .. string.format('<item text="%s" value="%s" />', v, v)
         end
         xml = xml .. [[
