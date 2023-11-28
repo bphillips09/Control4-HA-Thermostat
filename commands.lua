@@ -32,27 +32,6 @@ LAST_MAX = 100
 
 function SendToProxy(idBinding, strCommand, tParams, strmessage, allowEmptyValues)
     C4:SendToProxy(idBinding, strCommand, tParams)
-
-    --if idBinding == 5001 then
-    --    print("STP: " .. strCommand)
---
-    --    if tParams ~= nil then
-    --        print (Dump(tParams))
-    --    end
-    --end
-end
-
-function Dump(o)
-    if type(o) == 'table' then
-        local s = '{ '
-        for k, v in pairs(o) do
-            if type(k) ~= 'number' then k = '"' .. k .. '"' end
-            s = s .. '[' .. k .. '] = ' .. Dump(v) .. ','
-        end
-        return s .. '} '
-    else
-        return tostring(o)
-    end
 end
 
 function DRV.OnDriverInit(init)
@@ -90,7 +69,6 @@ function DRV.OnBindingChanged(idBinding, strClass, bIsBound)
 end
 
 function DRV.OnDriverDestroyed()
-    C4:DeleteVariable("FORCED_STATE")
 end
 
 function DRV.OnVariableChanged(variableName, value)
@@ -213,6 +191,7 @@ function OPC.Setpoint_Precision(strProperty)
     }
 
     SendToProxy(5001, 'DYNAMIC_CAPABILITIES_CHANGED', tParams, "NOTIFY")
+    SetupPresetFields()
 end
 
 function RFP.SET_REMOTE_SENSOR(idBinding, strCommand, tParams)
@@ -403,7 +382,7 @@ function RFP.SET_SETPOINT_HEAT(idBinding, strCommand, tParams)
         else
             return
         end
-    elseif CURRENT_STATE == "heat" then
+    elseif CURRENT_STATE == "heat" or CURRENT_STATE == "dry" then
         if SELECTED_SCALE == "FAHRENHEIT" then
             temperatureServiceCall = {
                 domain = "climate",
@@ -617,6 +596,9 @@ function RFP.SET_PRESETS(idBinding, strCommand, tParams)
             PRESETS[presetName][fieldId] = fieldValue
         end
     end
+
+    C4:PersistSetValue("Presets", PRESETS)
+    C4:InvalidateState()
 end
 
 function RFP.SET_EVENT(idBinding, strCommand, tParams)
@@ -638,9 +620,6 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
     end
 
     local preset = PRESETS[presetName]
-
-    print("----PRESET TABLE DUMP----")
-    print(Dump(preset))
 
     if preset.hvac_mode ~= nil then
         tParams["MODE"] = preset.hvac_mode
@@ -692,6 +671,10 @@ function RFP.SET_PRESET(idBinding, strCommand, tParams)
 
         RFP:SET_MODE_FAN(strCommand, tParams)
     end
+
+    tParams["NAME"] = presetName
+
+    SendToProxy(5001, "PRESET_CHANGED", tParams, "NOTIFY")
 end
 
 function SetupPresetFields()
@@ -856,6 +839,8 @@ function Parse(data)
 
         if state == "heat_cool" then
             state = "Auto"
+        elseif state == "dry" then
+            state = "heat"
         end
 
         IS_HA_AUTO = (state == "auto")
@@ -924,6 +909,7 @@ function Parse(data)
         SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = GetExtrasStateXML() }, 'NOTIFY')
     elseif selectedAttribute == nil then
         LAST_HA_PRESET = "Select Preset"
+
         SendToProxy(5001, 'EXTRAS_STATE_CHANGED', { XML = GetExtrasStateXML() }, 'NOTIFY')
     end
 
@@ -1102,7 +1088,7 @@ function Parse(data)
         elseif (string.find(selectedAttribute, "heat")) then
             c4ReportableState = "Heat"
         elseif (string.find(selectedAttribute, "dry")) then
-            c4ReportableState = "Dry"
+            c4ReportableState = "Heat"
         elseif (string.find(selectedAttribute, "fan")) then
             c4ReportableState = "Fan"
         end
@@ -1112,6 +1098,28 @@ function Parse(data)
         }
 
         SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
+    else
+        local c4ReportableState = "Off"
+        local hasValidState = false
+
+        if LAST_STATE == "cool" then
+            c4ReportableState = "Cool"
+            hasValidState = true
+        elseif LAST_STATE == "heat" then
+            c4ReportableState = "Heat"
+            hasValidState = true
+        elseif LAST_STATE == "dry" then
+            c4ReportableState = "Heat"
+            hasValidState = true
+        end
+
+        if hasValidState then
+            local tParams = {
+                STATE = c4ReportableState
+            }
+
+            SendToProxy(5001, "HVAC_STATE_CHANGED", tParams, "NOTIFY")
+        end
     end
 
     selectedAttribute = attributes["temperature"]
@@ -1122,7 +1130,7 @@ function Parse(data)
             return
         end
 
-        if state == "heat" and not IS_HA_AUTO then
+        if (state == "heat" or state == "dry") and not IS_HA_AUTO then
             local tParams = {
                 SETPOINT = tempValue,
                 SCALE = SELECTED_SCALE
@@ -1140,7 +1148,7 @@ function Parse(data)
             SendToProxy(5001, "COOL_SETPOINT_CHANGED", tParams, "NOTIFY")
 
             HIGH_TEMP = tempValue
-        elseif state == "auto" or IS_HA_AUTO then
+        elseif state == "auto" or state == "Auto" or IS_HA_AUTO then
             local tParams = {
                 SETPOINT = tempValue,
                 SCALE = SELECTED_SCALE
