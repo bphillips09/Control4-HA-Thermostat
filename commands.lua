@@ -775,6 +775,29 @@ function RFP.RECEIEVE_EVENT(idBinding, strCommand, tParams)
     Parse(eventData)
 end
 
+function GCPL.Set_Comfort_Setting(paramName)
+    if paramName ~= "Mode" then
+        return {}
+    end
+
+    local modes = {}
+    for _, mode in pairs(CLIMATE_MODES) do
+        table.insert(modes, mode.name)
+    end
+    table.sort(modes)
+    return modes
+end
+
+function EC.Set_Comfort_Setting(tParams)
+    local modeName = (tParams or {})["Mode"]
+    for _, mode in pairs(CLIMATE_MODES) do
+        if mode.name == modeName then
+            SelectClimateMode({ value = mode.ref })
+            break
+        end
+    end
+end
+
 function Parse(data)
     if data == nil then
         return
