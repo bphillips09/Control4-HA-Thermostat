@@ -137,8 +137,19 @@
 				<readonly>false</readonly>
 			</property>
 		</properties>
-		<actions></actions>
-		<commands/>
+		<actions/>
+		<commands>
+			<command>
+				<name>Set Comfort Setting</name>
+				<description>Set NAME Comfort Setting to PARAM1</description>
+				<params>
+					<param>
+						<name>Mode</name>
+						<type>DYNAMIC_LIST</type>
+					</param>
+				</params>
+			</command>
+		</commands>
 	</config>
 	<proxies>
 		<proxy proxybindingid="5001" name="HA Thermostat">thermostatV2</proxy>
